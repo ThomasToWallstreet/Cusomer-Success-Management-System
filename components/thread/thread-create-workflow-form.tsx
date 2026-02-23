@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 
 import { createThreadWorkflowAction } from "@/app/(dashboard)/threads/actions";
 import { Button } from "@/components/ui/button";
@@ -32,14 +32,14 @@ const emptyStakeholder = (): StakeholderRow => ({
 });
 
 type ModuleKey =
-  | "manage-customer"
-  | "basic-info"
+  | "context-info"
   | "business-goal"
   | "org-breakthrough"
   | "needs-understanding";
 
-const flowSteps: Array<{ key: Exclude<ModuleKey, "basic-info">; label: string }> = [
-  { key: "manage-customer", label: "管理客户" },
+type FlowStepKey = Exclude<ModuleKey, "context-info">;
+
+const flowSteps: Array<{ key: FlowStepKey; label: string }> = [
   { key: "business-goal", label: "经营目标-扩大收入" },
   { key: "org-breakthrough", label: "客户成功目标-组织关系突破" },
   { key: "needs-understanding", label: "客户成功目标-需求理解" },
@@ -59,12 +59,14 @@ export function ThreadCreateWorkflowForm({
   role?: string;
 }) {
   const [stakeholders, setStakeholders] = useState<StakeholderRow[]>([emptyStakeholder()]);
-  const [activeModule, setActiveModule] = useState<ModuleKey>("manage-customer");
+  const [activeFlowStep, setActiveFlowStep] = useState<FlowStepKey>("business-goal");
   const stakeholdersJson = useMemo(() => JSON.stringify(stakeholders), [stakeholders]);
-  const activeFlowIndex = flowSteps.findIndex((step) => step.key === activeModule);
-
-  const sectionClass = (module: ModuleKey) =>
-    `space-y-3 rounded-md border p-4 transition-colors ${activeModule === module ? "border-primary bg-primary/5" : "bg-background"}`;
+  const sectionRefs = useRef<Record<FlowStepKey, HTMLElement | null>>({
+    "business-goal": null,
+    "org-breakthrough": null,
+    "needs-understanding": null,
+  });
+  const sectionClass = "space-y-3 rounded-md border bg-background p-4";
 
   return (
     <Card>
@@ -78,8 +80,8 @@ export function ThreadCreateWorkflowForm({
           onFocusCapture={(event) => {
             const target = event.target as HTMLElement | null;
             const module = target?.closest("[data-module]")?.getAttribute("data-module") as ModuleKey | null;
-            if (module) {
-              setActiveModule(module);
+            if (module && module !== "context-info") {
+              setActiveFlowStep(module);
             }
           }}
         >
@@ -88,39 +90,46 @@ export function ThreadCreateWorkflowForm({
           <input type="hidden" name="stakeholdersJson" value={stakeholdersJson} />
 
           <div className="rounded-md border bg-muted/20 p-3">
-            <div className="grid gap-2 text-sm md:grid-cols-[auto,1fr,auto,1fr,auto,1fr,auto]">
+            <div className="grid gap-2 text-sm md:grid-cols-3">
               {flowSteps.map((step, index) => (
-                <div key={step.key} className="contents">
-                  <div
-                    className={`rounded-md border px-2 py-1 text-center whitespace-nowrap transition-colors ${
-                      activeModule === step.key
-                        ? "border-primary bg-background font-medium text-foreground"
+                <div key={step.key}>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => {
+                      setActiveFlowStep(step.key);
+                      sectionRefs.current[step.key]?.scrollIntoView({
+                        behavior: "smooth",
+                        block: "start",
+                      });
+                    }}
+                    className={`w-full cursor-pointer rounded-md border px-2 py-1 text-center whitespace-nowrap transition-all hover:bg-muted/40 ${
+                      activeFlowStep === step.key
+                        ? "border-primary bg-primary/10 font-semibold text-foreground shadow-sm"
                         : "text-muted-foreground"
                     }`}
                   >
-                    {index + 1} {step.label}
-                  </div>
-                  {index < flowSteps.length - 1 ? (
-                    <div className="flex items-center">
-                      <div className="relative h-[2px] w-full bg-border/70">
-                        <div
-                          className={`absolute left-0 top-0 h-[2px] bg-primary transition-all ${
-                            activeFlowIndex > index ? "w-full" : "w-0"
-                          }`}
-                        />
-                      </div>
-                    </div>
-                  ) : null}
+                    <span
+                      className={`mr-1 inline-flex h-5 w-5 items-center justify-center rounded-full text-[11px] ${
+                        activeFlowStep === step.key
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-muted text-muted-foreground"
+                      }`}
+                    >
+                      {index + 1}
+                    </span>
+                    {step.label}
+                  </Button>
                 </div>
               ))}
             </div>
             <p className="mt-2 text-xs text-muted-foreground">
-              基本信息不计入业务流，业务流聚焦：经营目标-扩大收入 → 组织关系突破 → 需求理解。
+              用于大客户服务经理按客户业务流推进制定客户成功计划：经营目标-扩大收入 → 组织关系突破 → 需求理解。
             </p>
           </div>
 
-          <section className={sectionClass("manage-customer")} data-module="manage-customer">
-            <h3 className="font-semibold">1、关联客户</h3>
+          <section className={sectionClass} data-module="context-info">
+            <h3 className="font-semibold">基础信息（关联客户与基础信息）</h3>
             <div className="space-y-2">
               <Label htmlFor="customerId">选择客户 *</Label>
               <select
@@ -138,10 +147,6 @@ export function ThreadCreateWorkflowForm({
                 ))}
               </select>
             </div>
-          </section>
-
-          <section className={sectionClass("basic-info")} data-module="basic-info">
-            <h3 className="font-semibold">基础信息（不计入业务流）</h3>
             <div className="grid gap-3 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="projectScenario">项目场景 *</Label>
@@ -158,7 +163,13 @@ export function ThreadCreateWorkflowForm({
             </div>
           </section>
 
-          <section className={sectionClass("business-goal")} data-module="business-goal">
+          <section
+            className={`${sectionClass} scroll-mt-24`}
+            data-module="business-goal"
+            ref={(element) => {
+              sectionRefs.current["business-goal"] = element;
+            }}
+          >
             <h3 className="font-semibold">1、经营目标-扩大收入</h3>
             <div className="grid gap-3 md:grid-cols-2">
               <div className="space-y-2">
@@ -200,7 +211,13 @@ export function ThreadCreateWorkflowForm({
             </div>
           </section>
 
-          <section className={sectionClass("org-breakthrough")} data-module="org-breakthrough">
+          <section
+            className={`${sectionClass} scroll-mt-24`}
+            data-module="org-breakthrough"
+            ref={(element) => {
+              sectionRefs.current["org-breakthrough"] = element;
+            }}
+          >
             <h3 className="font-semibold">2、客户成功目标-组织关系突破</h3>
             <div className="grid gap-3 md:grid-cols-2">
               <div className="space-y-2">
@@ -216,6 +233,21 @@ export function ThreadCreateWorkflowForm({
               <div className="text-sm font-medium">关键人条目</div>
               {stakeholders.map((person, index) => (
                 <div key={`stakeholder-${index}`} className="space-y-2 rounded-md border bg-muted/20 p-3">
+                  <div className="flex items-center justify-between">
+                    <div className="text-xs text-muted-foreground">关键人 {index + 1}</div>
+                    {stakeholders.length > 1 ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          setStakeholders((prev) => prev.filter((_, personIndex) => personIndex !== index))
+                        }
+                      >
+                        - 删除
+                      </Button>
+                    ) : null}
+                  </div>
                   <div className="grid gap-2 md:grid-cols-3">
                     <Input
                       placeholder="关键人姓名"
@@ -304,7 +336,13 @@ export function ThreadCreateWorkflowForm({
             </div>
           </section>
 
-          <section className={sectionClass("needs-understanding")} data-module="needs-understanding">
+          <section
+            className={`${sectionClass} scroll-mt-24`}
+            data-module="needs-understanding"
+            ref={(element) => {
+              sectionRefs.current["needs-understanding"] = element;
+            }}
+          >
             <h3 className="font-semibold">3、客户成功目标-需求理解</h3>
             <div className="space-y-2">
               <Label htmlFor="businessNeedAnalysis">客户业务需求分析（业务流/数据流） *</Label>

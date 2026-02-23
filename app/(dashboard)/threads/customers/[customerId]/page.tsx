@@ -84,7 +84,7 @@ export default async function CustomerPlanDetailPage({
         <div className="flex flex-wrap items-center gap-5 text-sm">
           <span>客户名称：{customer.name}</span>
           <span>行业：{customer.industry || "-"}</span>
-          <span>客户经理：{managerName || "-"}</span>
+          <span>大客户服务经理：{managerName || "-"}</span>
           <span>最近更新：{format(selected.updatedAt, "yyyy-MM-dd HH:mm", { locale: zhCN })}</span>
           <Button size="sm" asChild className="ml-auto">
             <Link
@@ -101,7 +101,7 @@ export default async function CustomerPlanDetailPage({
 
       <div className="grid gap-4 lg:grid-cols-[1fr_380px]">
         <section className="rounded-lg border bg-card p-3">
-          <h3 className="mb-3 font-semibold">客户下多个关键场景（共 {scenarios.length} 个）</h3>
+          <h3 className="mb-3 font-semibold">当前客户关键场景（共 {scenarios.length} 个）</h3>
           <div className="space-y-2">
             {scenarios.map((scenario) => {
               const scenarioQuery = new URLSearchParams({

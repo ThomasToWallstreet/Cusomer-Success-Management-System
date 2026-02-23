@@ -46,3 +46,8 @@ docker compose -f docker-compose.dev.yml exec web npx prisma studio
 
 # 强制刷新后仍异常时，检查迁移状态
 docker compose -f docker-compose.dev.yml exec web npx prisma migrate status
+
+
+Git commit命令：
+git add .
+git commit -m "update: axis style tweak"

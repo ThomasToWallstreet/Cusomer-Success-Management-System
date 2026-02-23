@@ -1,0 +1,48 @@
+1) 首次启动 / 日常启动（Docker Dev）
+
+cd /d "E:\Cursor\深圳区KA客户成功管理系统"
+
+# 启动开发环境（含构建）
+docker compose -f docker-compose.dev.yml up --build -d
+
+# 查看 web 日志
+docker compose -f docker-compose.dev.yml logs -f web
+
+
+
+2) 每次代码迭代后：关闭 -> 重启 -> 迁移 -> 生成 -> （可选导入）
+
+cd /d "E:\Cursor\深圳区KA客户成功管理系统"
+
+# 1. 关闭旧容器
+docker compose -f docker-compose.dev.yml down
+
+# 2. 重启并重建
+docker compose -f docker-compose.dev.yml up --build -d
+
+# 3. 应用 Prisma 迁移（开发环境）
+docker compose -f docker-compose.dev.yml exec web npx prisma migrate dev
+
+# 4. 生成 Prisma Client
+docker compose -f docker-compose.dev.yml exec web npx prisma generate
+
+# 5. （可选）导入客户清单生产CSV（全量替换）
+docker compose -f docker-compose.dev.yml exec web npm run import:customer-list -- "原型文档/深圳区 的副本.utf8.csv"
+
+# 6. 看日志确认
+docker compose -f docker-compose.dev.yml logs -f web
+
+
+
+常用补充命令（建议收藏）
+# 仅重启 web 容器
+docker compose -f docker-compose.dev.yml restart web
+
+# 进入 web 容器
+docker compose -f docker-compose.dev.yml exec web sh
+
+# 打开 Prisma Studio
+docker compose -f docker-compose.dev.yml exec web npx prisma studio
+
+# 强制刷新后仍异常时，检查迁移状态
+docker compose -f docker-compose.dev.yml exec web npx prisma migrate status

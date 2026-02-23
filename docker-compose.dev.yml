@@ -1,0 +1,36 @@
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: ka_csm
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata_dev:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ka_csm"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  web:
+    image: node:20-alpine
+    working_dir: /app
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/ka_csm?schema=public
+      NODE_ENV: development
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/app
+      - web_node_modules:/app/node_modules
+    command: sh -c "chmod +x ./scripts/dev-entrypoint.sh && ./scripts/dev-entrypoint.sh"
+
+volumes:
+  pgdata_dev:
+  web_node_modules:

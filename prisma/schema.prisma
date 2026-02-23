@@ -1,0 +1,144 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Stage {
+  BASIC_INFO
+  BUSINESS_GOAL
+  ORG_RELATION
+  SUCCESS_DEFINITION
+  KEY_ACTIVITIES
+  EXECUTION
+}
+
+enum StageStatus {
+  IN_PROGRESS
+  BLOCKED
+  DONE
+}
+
+enum RiskLevel {
+  GREEN
+  YELLOW
+  RED
+}
+
+model Customer {
+  id               String               @id @default(cuid())
+  name             String               @unique
+  industry         String?
+  tier             String?
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+  scenarios        KeySuccessScenario[]
+  weeklyReports    WeeklyReport[]
+  assignments      ManagerCustomerAssignment[]
+  customerListItem CustomerListEntry?
+}
+
+model ManagerCustomerAssignment {
+  id         String   @id @default(cuid())
+  managerName String
+  customerId String
+  createdAt  DateTime @default(now())
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@unique([managerName, customerId])
+  @@index([managerName])
+  @@index([customerId])
+}
+
+model KeySuccessScenario {
+  id                 String               @id @default(cuid())
+  customer           String
+  customerId         String?
+  keyPerson          String
+  keyPersonDept      String?
+  keyProjectScenario String
+  productLine        String?
+  ownerName          String
+  stage              Stage                @default(BASIC_INFO)
+  stageStatus        StageStatus          @default(IN_PROGRESS)
+  riskLevel          RiskLevel            @default(GREEN)
+  nextAction         String?
+  goalSection        Json?
+  orgSection         Json?
+  successSection     Json?
+  activitySection    Json?
+  executionSection   Json?
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+  weeklyReportLinks  WeeklyReportThread[]
+  customerRecord     Customer?            @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
+  @@index([customer])
+  @@index([customerId])
+  @@index([ownerName])
+  @@index([riskLevel, stage])
+}
+
+model WeeklyReport {
+  id             String               @id @default(cuid())
+  customerId     String?
+  ownerName      String
+  weekStart      DateTime
+  weekEnd        DateTime
+  summary        String
+  risks          String?
+  nextWeekPlan   String?
+  needSupport    String?
+  createdAt      DateTime             @default(now())
+  threadLinks    WeeklyReportThread[]
+  customerRecord Customer?            @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
+  @@index([ownerName, weekStart])
+  @@index([customerId, weekStart])
+}
+
+model WeeklyReportThread {
+  id             String             @id @default(cuid())
+  weeklyReportId String
+  threadId       String
+  weeklyReport   WeeklyReport       @relation(fields: [weeklyReportId], references: [id], onDelete: Cascade)
+  thread         KeySuccessScenario @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  @@unique([weeklyReportId, threadId])
+  @@index([threadId])
+}
+
+model CustomerListEntry {
+  id                  String   @id @default(cuid())
+  customerId          String   @unique
+  customerName        String
+  groupBranch         String?
+  industry            String?
+  customerType        String?
+  customerStage       String?
+  annualCapacity      String?
+  order25             String?
+  performance25       String?
+  order26             String?
+  performance26       String?
+  growthOrder         String?
+  growthPerformance   String?
+  sales               String?
+  preSalesSecurity    String?
+  preSalesCloud       String?
+  accountServiceManager String?
+  remark              String?
+  sourceBatch         String?
+  importedAt          DateTime @default(now())
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  customer            Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([accountServiceManager])
+  @@index([industry])
+  @@index([customerType])
+  @@index([customerStage])
+}

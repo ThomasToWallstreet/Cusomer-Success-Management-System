@@ -3,7 +3,6 @@ import { ArrowLeft } from "lucide-react";
 
 import { ThreadCreateWorkflowForm } from "@/components/thread/thread-create-workflow-form";
 import { Button } from "@/components/ui/button";
-import { listOwners } from "@/lib/repos/thread-repo";
 import { listCustomers, listCustomersByManager } from "@/lib/repos/customer-repo";
 import { resolveCurrentManager, listCustomerIdsByManager } from "@/lib/repos/manager-assignment-repo";
 import { isSupervisorRole, parseViewerRole } from "@/lib/viewer-role";
@@ -31,12 +30,9 @@ export default async function ThreadNewPage({
   const allowedCustomerIds = isSupervisorRole(role)
     ? undefined
     : await listCustomerIdsByManager(managerName === "ALL" ? undefined : managerName);
-  const [owners, customers] = await Promise.all([
-    listOwners(undefined, allowedCustomerIds),
-    isSupervisorRole(role)
-      ? listCustomers()
-      : listCustomersByManager(managerName === "ALL" ? undefined : managerName),
-  ]);
+  const customers = await (isSupervisorRole(role)
+    ? listCustomers()
+    : listCustomersByManager(managerName === "ALL" ? undefined : managerName));
   const scopedCustomerId = selectedCustomerId &&
     (!allowedCustomerIds || allowedCustomerIds.includes(selectedCustomerId))
       ? selectedCustomerId
@@ -54,7 +50,6 @@ export default async function ThreadNewPage({
         </Link>
       </Button>
       <ThreadCreateWorkflowForm
-        ownerOptions={owners}
         customerOptions={customers}
         selectedCustomerId={scopedCustomerId}
         managerName={managerName}

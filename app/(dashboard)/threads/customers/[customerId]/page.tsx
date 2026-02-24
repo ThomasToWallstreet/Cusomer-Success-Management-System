@@ -23,6 +23,13 @@ function toRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
 }
 
+function formatBooleanOrText(value: unknown, trueLabel = "是", falseLabel = "否") {
+  if (value === true) return trueLabel;
+  if (value === false) return falseLabel;
+  if (typeof value === "string" && value.trim()) return value;
+  return "-";
+}
+
 export default async function CustomerPlanDetailPage({
   params,
   searchParams,
@@ -152,7 +159,7 @@ export default async function CustomerPlanDetailPage({
               <div>目标维度：{String(goal.targetDimension || "-")}</div>
               <div>业务阶段：{String(goal.businessStage || "-")}</div>
               <div>目标描述：{String(goal.targetDescription || "-")}</div>
-              <div>经营目标是否达成：{goal.businessGoalAchieved === true ? "是" : goal.businessGoalAchieved === false ? "否" : "-"}</div>
+              <div>经营目标是否达成：{formatBooleanOrText(goal.businessGoalAchieved)}</div>
             </section>
             <section className="rounded-md border p-3">
               <div className="mb-1 font-medium">客户成功-组织关系</div>
@@ -175,7 +182,7 @@ export default async function CustomerPlanDetailPage({
               <div>客户业务需求分析：{String(success.businessNeedAnalysis || "-")}</div>
               <div>关键人的个人需求：{String(success.personalNeeds || "-")}</div>
               <div>客户成功目标（SMART）：{String(success.smartGoal || "-")}</div>
-              <div>是否与客户完成对齐：{success.alignedWithCustomer === true ? "是" : success.alignedWithCustomer === false ? "否" : "-"}</div>
+              <div>是否与客户完成对齐：{formatBooleanOrText(success.alignedWithCustomer)}</div>
             </section>
           </div>
         </aside>

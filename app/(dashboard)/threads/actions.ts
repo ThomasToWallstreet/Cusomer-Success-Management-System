@@ -80,11 +80,10 @@ export async function createThreadWorkflowAction(formData: FormData) {
     role: formData.get("role"),
     managerName: formData.get("managerName"),
     customerId: formData.get("customerId"),
-    ownerName: formData.get("ownerName"),
     projectScenario: formData.get("projectScenario"),
-    productLine: formData.get("productLine"),
+    productLine: formData.getAll("productLine"),
     keyScenarioDescription: formData.get("keyScenarioDescription"),
-    targetDimension: formData.get("targetDimension"),
+    targetDimension: formData.getAll("targetDimension"),
     targetDescription: formData.get("targetDescription"),
     businessStage: formData.get("businessStage"),
     businessGoalAchieved: formData.get("businessGoalAchieved"),
@@ -141,6 +140,10 @@ export async function createThreadWorkflowAction(formData: FormData) {
 
   const role = parseViewerRole(parsed.data.role);
   const managerName = parsed.data.managerName?.trim();
+  const effectiveOwnerName = managerName && managerName !== "ALL" ? managerName : null;
+  if (!effectiveOwnerName) {
+    throw new Error("负责人信息缺失，请从经理个人页面进入新建");
+  }
   if (!isSupervisorRole(role) && managerName) {
     const allowedCustomerIds = await listCustomerIdsByManager(managerName);
     if (!allowedCustomerIds.includes(customer.id)) {
@@ -165,8 +168,8 @@ export async function createThreadWorkflowAction(formData: FormData) {
     keyPerson: normalizedStakeholders[0].name,
     keyPersonDept: normalizedStakeholders[0].department || null,
     keyProjectScenario: parsed.data.projectScenario,
-    productLine: parsed.data.productLine || null,
-    ownerName: parsed.data.ownerName,
+    productLine: parsed.data.productLine.length ? parsed.data.productLine.join(",") : null,
+    ownerName: effectiveOwnerName,
     stage: "BASIC_INFO",
     stageStatus: "IN_PROGRESS",
     riskLevel: "GREEN",
@@ -175,7 +178,7 @@ export async function createThreadWorkflowAction(formData: FormData) {
       targetDimension: parsed.data.targetDimension,
       targetDescription: parsed.data.targetDescription,
       businessStage: parsed.data.businessStage,
-      businessGoalAchieved: parsed.data.businessGoalAchieved === "YES",
+      businessGoalAchieved: parsed.data.businessGoalAchieved,
     },
     orgSection: {
       module: "客户成功-组织关系",
@@ -188,7 +191,7 @@ export async function createThreadWorkflowAction(formData: FormData) {
       businessNeedAnalysis: parsed.data.businessNeedAnalysis,
       personalNeeds: parsed.data.personalNeeds,
       smartGoal: parsed.data.smartGoal,
-      alignedWithCustomer: parsed.data.alignedWithCustomer === "YES",
+      alignedWithCustomer: parsed.data.alignedWithCustomer,
       attachments,
     },
     activitySection: {

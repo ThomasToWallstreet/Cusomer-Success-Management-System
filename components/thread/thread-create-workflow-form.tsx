@@ -1,13 +1,16 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
+import { Check, ChevronsUpDown } from "lucide-react";
 
 import { createThreadWorkflowAction } from "@/app/(dashboard)/threads/actions";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
 
 type StakeholderRow = {
   name: string;
@@ -45,28 +48,114 @@ const flowSteps: Array<{ key: FlowStepKey; label: string }> = [
   { key: "needs-understanding", label: "客户成功目标-需求理解" },
 ];
 
+const productLineOptions = [
+  "AC",
+  "AF",
+  "AD",
+  "aDesk",
+  "XDR",
+  "aES",
+  "安全服务",
+  "MSS",
+  "GPT",
+  "HCI",
+  "aTrust",
+  "SIP",
+  "SASE",
+  "EDS",
+  "AI安全平台",
+  "SG",
+  "SDDC",
+  "CSSP",
+  "VPN",
+] as const;
+
+const targetDimensionOptions = ["复购", "新业务突破", "续约"] as const;
+const businessStageOptions = [
+  "1选择向正确客户销售",
+  "2测出效果优势并验证可落地性",
+  "3招投标到订单",
+  "4帮客户(关键人)快速兑现价值",
+  "5持续经营扩大业务合作范围",
+] as const;
+const businessGoalResultOptions = [
+  "复购已下单",
+  "复购机会已立项",
+  "续费已达成",
+  "突破业务价值已兑现",
+  "未达成",
+] as const;
+const orgCurrentStateOptions = [
+  "充分信赖",
+  "信任支持",
+  "基本满意",
+  "不够满意",
+  "严重不满",
+] as const;
+const orgChangesOptions = [
+  "提升至充分信赖",
+  "提升至信任支持",
+  "下降至严重不满",
+  "下降至不够满意",
+  "无变化",
+  "有非常正向的变化",
+] as const;
+const stakeholderCurrentOptions = ["认可", "一般", "无感知", "不满意"] as const;
+const stakeholderTargetOptions = ["认可", "一般", "无感知", "严重不满"] as const;
+const alignedWithCustomerOptions = ["是-充分对齐", "是-部分对齐", "否-未对齐"] as const;
+
 export function ThreadCreateWorkflowForm({
   customerOptions,
-  ownerOptions,
   selectedCustomerId,
   managerName,
   role,
 }: {
   customerOptions: Array<{ id: string; name: string }>;
-  ownerOptions: string[];
   selectedCustomerId?: string;
   managerName?: string;
   role?: string;
 }) {
   const [stakeholders, setStakeholders] = useState<StakeholderRow[]>([emptyStakeholder()]);
   const [activeFlowStep, setActiveFlowStep] = useState<FlowStepKey>("business-goal");
+  const [isProductLineOpen, setIsProductLineOpen] = useState(false);
+  const [selectedProductLines, setSelectedProductLines] = useState<string[]>([]);
+  const [isTargetDimensionOpen, setIsTargetDimensionOpen] = useState(false);
+  const [selectedTargetDimensions, setSelectedTargetDimensions] = useState<string[]>([]);
   const stakeholdersJson = useMemo(() => JSON.stringify(stakeholders), [stakeholders]);
+  const productLineSummary = useMemo(() => {
+    if (selectedProductLines.length === 0) {
+      return "请选择产品线（可多选）";
+    }
+    if (selectedProductLines.length <= 3) {
+      return selectedProductLines.join("、");
+    }
+    return `${selectedProductLines.slice(0, 3).join("、")} 等 ${selectedProductLines.length} 项`;
+  }, [selectedProductLines]);
+  const targetDimensionSummary = useMemo(() => {
+    if (selectedTargetDimensions.length === 0) {
+      return "请选择目标维度（可多选）";
+    }
+    if (selectedTargetDimensions.length <= 3) {
+      return selectedTargetDimensions.join("、");
+    }
+    return `${selectedTargetDimensions.slice(0, 3).join("、")} 等 ${selectedTargetDimensions.length} 项`;
+  }, [selectedTargetDimensions]);
   const sectionRefs = useRef<Record<FlowStepKey, HTMLElement | null>>({
     "business-goal": null,
     "org-breakthrough": null,
     "needs-understanding": null,
   });
   const sectionClass = "space-y-3 rounded-md border bg-background p-4";
+  const toggleProductLine = (option: string) => {
+    setSelectedProductLines((prev) =>
+      prev.includes(option) ? prev.filter((item) => item !== option) : [...prev, option],
+    );
+  };
+  const toggleTargetDimension = (option: string) => {
+    setSelectedTargetDimensions((prev) =>
+      prev.includes(option) ? prev.filter((item) => item !== option) : [...prev, option],
+    );
+  };
 
   return (
     <Card>
@@ -87,6 +176,7 @@ export function ThreadCreateWorkflowForm({
         >
           <input type="hidden" name="managerName" value={managerName || ""} />
           <input type="hidden" name="role" value={role || ""} />
+          <input type="hidden" name="ownerName" value={managerName || ""} />
           <input type="hidden" name="stakeholdersJson" value={stakeholdersJson} />
 
           <div className="rounded-md border bg-muted/20 p-3">
@@ -153,8 +243,59 @@ export function ThreadCreateWorkflowForm({
                 <Input id="projectScenario" name="projectScenario" required />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="productLine">产品线 *</Label>
-                <Input id="productLine" name="productLine" required />
+                <Label htmlFor="productLine">产品线（多选） *</Label>
+                <Popover open={isProductLineOpen} onOpenChange={setIsProductLineOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      id="productLine"
+                      type="button"
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={isProductLineOpen}
+                      className={cn(
+                        "w-full justify-between font-normal",
+                        selectedProductLines.length === 0 && "text-muted-foreground",
+                      )}
+                    >
+                      <span className="truncate">{productLineSummary}</span>
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-1" align="start">
+                    <div className="max-h-64 space-y-1 overflow-y-auto">
+                      {productLineOptions.map((option) => {
+                        const selected = selectedProductLines.includes(option);
+                        return (
+                          <button
+                            key={option}
+                            type="button"
+                            onClick={() => toggleProductLine(option)}
+                            className={cn(
+                              "flex w-full items-center rounded-sm px-2 py-1.5 text-left text-sm transition-colors",
+                              selected ? "bg-muted/50" : "hover:bg-muted/40",
+                            )}
+                          >
+                            <span
+                              className={cn(
+                                "mr-2 flex h-4 w-4 items-center justify-center rounded-[3px] border",
+                                selected
+                                  ? "border-primary bg-primary text-primary-foreground"
+                                  : "border-input bg-background",
+                              )}
+                            >
+                              {selected ? <Check className="h-3 w-3" /> : null}
+                            </span>
+                            <span>{option}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+                {selectedProductLines.map((option) => (
+                  <input key={`productLine-${option}`} type="hidden" name="productLine" value={option} />
+                ))}
+                <p className="text-xs text-muted-foreground">点击下拉后勾选，可重复点击取消。</p>
               </div>
             </div>
             <div className="space-y-2">
@@ -173,41 +314,97 @@ export function ThreadCreateWorkflowForm({
             <h3 className="font-semibold">1、经营目标-扩大收入</h3>
             <div className="grid gap-3 md:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="targetDimension">目标维度 *</Label>
-                <select id="targetDimension" name="targetDimension" className="h-9 w-full rounded-md border bg-background px-3 text-sm" required>
-                  <option value="">请选择</option>
-                  <option value="REPURCHASE">复购</option>
-                  <option value="NEW_BUSINESS">新业务突破</option>
-                </select>
+                <Label htmlFor="targetDimension">目标维度（多选） *</Label>
+                <Popover open={isTargetDimensionOpen} onOpenChange={setIsTargetDimensionOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      id="targetDimension"
+                      type="button"
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={isTargetDimensionOpen}
+                      className={cn(
+                        "w-full justify-between font-normal",
+                        selectedTargetDimensions.length === 0 && "text-muted-foreground",
+                      )}
+                    >
+                      <span className="truncate">{targetDimensionSummary}</span>
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-1" align="start">
+                    <div className="space-y-1">
+                      {targetDimensionOptions.map((option) => {
+                        const selected = selectedTargetDimensions.includes(option);
+                        return (
+                          <button
+                            key={option}
+                            type="button"
+                            onClick={() => toggleTargetDimension(option)}
+                            className={cn(
+                              "flex w-full items-center rounded-sm px-2 py-1.5 text-left text-sm transition-colors",
+                              selected ? "bg-muted/50" : "hover:bg-muted/40",
+                            )}
+                          >
+                            <span
+                              className={cn(
+                                "mr-2 flex h-4 w-4 items-center justify-center rounded-[3px] border",
+                                selected
+                                  ? "border-primary bg-primary text-primary-foreground"
+                                  : "border-input bg-background",
+                              )}
+                            >
+                              {selected ? <Check className="h-3 w-3" /> : null}
+                            </span>
+                            <span>{option}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+                {selectedTargetDimensions.map((option) => (
+                  <input key={`targetDimension-${option}`} type="hidden" name="targetDimension" value={option} />
+                ))}
+                <p className="text-xs text-muted-foreground">点击下拉后勾选，可重复点击取消。</p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="businessStage">业务阶段 *</Label>
                 <select id="businessStage" name="businessStage" className="h-9 w-full rounded-md border bg-background px-3 text-sm" required>
                   <option value="">请选择</option>
-                  <option value="初步接触">初步接触</option>
-                  <option value="方案验证">方案验证</option>
-                  <option value="商务签署">商务签署</option>
-                  <option value="部署实施">部署实施</option>
-                  <option value="持续运营">持续运营</option>
+                  {businessStageOptions.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
                 </select>
               </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="targetDescription">目标描述（KPI化+定义逻辑） *</Label>
-              <Textarea id="targetDescription" name="targetDescription" rows={3} required />
+              <Textarea
+                id="targetDescription"
+                name="targetDescription"
+                rows={3}
+                placeholder="//复购机会是怎么定义的//续费是怎么定义的//为什么要订新业务突破的目标"
+                required
+              />
             </div>
             <div className="space-y-2">
-              <Label>经营目标是否达成 *</Label>
-              <div className="flex gap-6 text-sm">
-                <label className="inline-flex items-center gap-2">
-                  <input type="radio" name="businessGoalAchieved" value="YES" required />
-                  是
-                </label>
-                <label className="inline-flex items-center gap-2">
-                  <input type="radio" name="businessGoalAchieved" value="NO" />
-                  否
-                </label>
-              </div>
+              <Label htmlFor="businessGoalAchieved">经营目标是否达成 *</Label>
+              <select
+                id="businessGoalAchieved"
+                name="businessGoalAchieved"
+                className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+                required
+              >
+                <option value="">请选择</option>
+                {businessGoalResultOptions.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
             </div>
           </section>
 
@@ -222,11 +419,30 @@ export function ThreadCreateWorkflowForm({
             <div className="grid gap-3 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="orgCurrentState">整体组织关系现状 *</Label>
-                <Textarea id="orgCurrentState" name="orgCurrentState" rows={3} required />
+                <select
+                  id="orgCurrentState"
+                  name="orgCurrentState"
+                  className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+                  required
+                >
+                  <option value="">请选择</option>
+                  {orgCurrentStateOptions.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="orgChanges">变化情况 *</Label>
-                <Textarea id="orgChanges" name="orgChanges" rows={3} required />
+                <select id="orgChanges" name="orgChanges" className="h-9 w-full rounded-md border bg-background px-3 text-sm" required>
+                  <option value="">请选择</option>
+                  {orgChangesOptions.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
             <div className="space-y-3">
@@ -279,7 +495,7 @@ export function ThreadCreateWorkflowForm({
                   </div>
                   <div className="grid gap-2 md:grid-cols-2">
                     <Input
-                      placeholder="关键人说明"
+                      placeholder="关键人说明：1、为什么定义到这个人，怎么识别的//是不是承接了市场bp//有没有遗漏 2、这个人还有没有其他关联场景"
                       value={person.description}
                       onChange={(event) => {
                         const next = [...stakeholders];
@@ -287,24 +503,38 @@ export function ThreadCreateWorkflowForm({
                         setStakeholders(next);
                       }}
                     />
-                    <Input
-                      placeholder="现状"
+                    <select
+                      className="h-9 w-full rounded-md border bg-background px-3 text-sm"
                       value={person.currentState}
                       onChange={(event) => {
                         const next = [...stakeholders];
                         next[index].currentState = event.target.value;
                         setStakeholders(next);
                       }}
-                    />
-                    <Input
-                      placeholder="目标"
+                    >
+                      <option value="">现状</option>
+                      {stakeholderCurrentOptions.map((option) => (
+                        <option key={option} value={option}>
+                          {option}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      className="h-9 w-full rounded-md border bg-background px-3 text-sm"
                       value={person.target}
                       onChange={(event) => {
                         const next = [...stakeholders];
                         next[index].target = event.target.value;
                         setStakeholders(next);
                       }}
-                    />
+                    >
+                      <option value="">目标</option>
+                      {stakeholderTargetOptions.map((option) => (
+                        <option key={option} value={option}>
+                          {option}
+                        </option>
+                      ))}
+                    </select>
                     <Input
                       placeholder="认可标准"
                       value={person.acceptanceCriteria}
@@ -361,28 +591,21 @@ export function ThreadCreateWorkflowForm({
               <Textarea id="smartGoal" name="smartGoal" rows={3} required />
             </div>
             <div className="space-y-2">
-              <Label>是否与客户完成对齐 *</Label>
-              <div className="flex gap-6 text-sm">
-                <label className="inline-flex items-center gap-2">
-                  <input type="radio" name="alignedWithCustomer" value="YES" required />
-                  是
-                </label>
-                <label className="inline-flex items-center gap-2">
-                  <input type="radio" name="alignedWithCustomer" value="NO" />
-                  否
-                </label>
-              </div>
+              <Label htmlFor="alignedWithCustomer">是否与客户完成对齐 *</Label>
+              <select
+                id="alignedWithCustomer"
+                name="alignedWithCustomer"
+                className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+                required
+              >
+                <option value="">请选择</option>
+                {alignedWithCustomerOptions.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
             </div>
-          </section>
-
-          <section className="space-y-2 rounded-md border p-4">
-            <Label htmlFor="ownerName">负责人（Owner） *</Label>
-            <Input id="ownerName" name="ownerName" required defaultValue={managerName || ""} list="owner-options" />
-            <datalist id="owner-options">
-              {ownerOptions.map((owner) => (
-                <option key={owner} value={owner} />
-              ))}
-            </datalist>
           </section>
 
           <div className="flex flex-wrap justify-end gap-2">

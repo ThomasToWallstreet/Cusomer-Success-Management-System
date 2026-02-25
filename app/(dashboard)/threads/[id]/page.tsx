@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 
 import { StageSectionCard } from "@/components/thread/stage-section-card";
+import { ExecutionWorkbench } from "@/components/thread/execution-workbench";
 import { ThreadHeaderSticky } from "@/components/thread/thread-header-sticky";
 import { ThreadStepper } from "@/components/thread/thread-stepper";
 import { Accordion } from "@/components/ui/accordion";
@@ -46,6 +47,12 @@ export default async function ThreadDetailPage({ params }: { params: Promise<{ i
         <StageSectionCard id={thread.id} section="activitySection" label="关键活动" value={thread.activitySection} />
         <StageSectionCard id={thread.id} section="executionSection" label="执行推进" value={thread.executionSection} />
       </Accordion>
+
+      <ExecutionWorkbench
+        threadId={thread.id}
+        activitySection={thread.activitySection}
+        executionSection={thread.executionSection}
+      />
 
       <WeeklyReportTimeline
         items={thread.weeklyReportLinks.map((item) => ({

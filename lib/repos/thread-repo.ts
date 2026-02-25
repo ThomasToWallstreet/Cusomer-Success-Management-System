@@ -59,6 +59,39 @@ export async function listThreads(filters: ThreadListFilters = {}) {
   });
 }
 
+export async function countThreadsUpdatedInLastDays(filters: ThreadListFilters = {}, days = 7) {
+  const scopedCustomerIds =
+    filters.customerIds !== undefined
+      ? filters.customerId
+        ? filters.customerIds.filter((id) => id === filters.customerId)
+        : filters.customerIds
+      : filters.customerId
+        ? [filters.customerId]
+        : undefined;
+  const where: Prisma.KeySuccessScenarioWhereInput = {
+    ...(scopedCustomerIds ? { customerId: { in: scopedCustomerIds } } : {}),
+    ...(filters.ownerName ? { ownerName: filters.ownerName } : {}),
+    ...(filters.stage ? { stage: filters.stage } : {}),
+    ...(filters.stageStatus ? { stageStatus: filters.stageStatus } : {}),
+    ...(filters.riskLevel ? { riskLevel: filters.riskLevel } : {}),
+    updatedAt: {
+      gte: new Date(Date.now() - days * 24 * 60 * 60 * 1000),
+    },
+  };
+
+  if (filters.keyword) {
+    where.OR = [
+      { customer: { contains: filters.keyword, mode: "insensitive" } },
+      { customerRecord: { name: { contains: filters.keyword, mode: "insensitive" } } },
+      { keyPerson: { contains: filters.keyword, mode: "insensitive" } },
+      { keyProjectScenario: { contains: filters.keyword, mode: "insensitive" } },
+      { nextAction: { contains: filters.keyword, mode: "insensitive" } },
+    ];
+  }
+
+  return prisma.keySuccessScenario.count({ where });
+}
+
 export async function listThreadsByCustomer(customerId?: string, ownerName?: string) {
   return prisma.keySuccessScenario.findMany({
     where: {

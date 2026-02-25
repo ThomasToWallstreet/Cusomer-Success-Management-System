@@ -23,6 +23,16 @@ const stageOrder: Stage[] = [
   "EXECUTION",
 ];
 
+type JsonRecord = Record<string, unknown>;
+
+function asRecord(value: unknown): JsonRecord {
+  return value && typeof value === "object" ? (value as JsonRecord) : {};
+}
+
+function asArray(value: unknown): JsonRecord[] {
+  return Array.isArray(value) ? (value as JsonRecord[]) : [];
+}
+
 export async function getDashboardSnapshot() {
   return getDashboardSnapshotByCustomer();
 }
@@ -79,11 +89,18 @@ export async function getDashboardSnapshotByCustomer(customerId?: string, custom
     prisma.weeklyReport.findMany({
       where: whereScope,
       select: {
+        weeklyObjectives: true,
+        plannedExecutionItems: true,
+        executedItems: true,
+        requiredNextActions: true,
+        qualitativeConclusions: true,
+        satisfactionRiskLevel: true,
         risks: true,
         needSupport: true,
+        createdAt: true,
       },
       orderBy: { createdAt: "desc" },
-      take: 12,
+      take: 24,
     }),
   ]);
 
@@ -126,6 +143,106 @@ export async function getDashboardSnapshotByCustomer(customerId?: string, custom
     },
   );
 
+  const riskLevelCountMap = recentReports.reduce<Record<"HIGH_RED" | "MEDIUM_YELLOW" | "LOW_GREEN", number>>(
+    (acc, report) => {
+      const level = report.satisfactionRiskLevel as "HIGH_RED" | "MEDIUM_YELLOW" | "LOW_GREEN" | null;
+      if (level && acc[level] !== undefined) {
+        acc[level] += 1;
+      }
+      return acc;
+    },
+    {
+      HIGH_RED: 0,
+      MEDIUM_YELLOW: 0,
+      LOW_GREEN: 0,
+    },
+  );
+
+  const recognitionCountMap = recentReports.reduce<
+    Record<
+      "NOT_YET_RESULT" | "PENDING_CONFIRMATION" | "AVERAGE_RESULT" | "GOOD_RECOGNIZED" | "BAD_NOT_RECOGNIZED" | "NOT_APPLICABLE",
+      number
+    >
+  >(
+    (acc, report) => {
+      const conclusions = asRecord(report.qualitativeConclusions);
+      const key = String(conclusions.keyStakeholderRecognitionResult || "") as
+        | "NOT_YET_RESULT"
+        | "PENDING_CONFIRMATION"
+        | "AVERAGE_RESULT"
+        | "GOOD_RECOGNIZED"
+        | "BAD_NOT_RECOGNIZED"
+        | "NOT_APPLICABLE";
+      if (acc[key] !== undefined) {
+        acc[key] += 1;
+      }
+      return acc;
+    },
+    {
+      NOT_YET_RESULT: 0,
+      PENDING_CONFIRMATION: 0,
+      AVERAGE_RESULT: 0,
+      GOOD_RECOGNIZED: 0,
+      BAD_NOT_RECOGNIZED: 0,
+      NOT_APPLICABLE: 0,
+    },
+  );
+
+  const executionHealth = recentReports.reduce(
+    (acc, report) => {
+      const planned = asArray(report.plannedExecutionItems);
+      const executed = asArray(report.executedItems);
+      const required = asArray(report.requiredNextActions);
+      acc.plannedTotal += planned.length;
+      acc.executedTotal += executed.length;
+      acc.requiredTotal += required.length;
+      executed.forEach((item) => {
+        const status = String(item.status || "");
+        if (status === "BLOCKED") {
+          acc.blockedTotal += 1;
+        }
+        const hasEvidence = Boolean(String(item.evidence || "").trim());
+        if (hasEvidence) {
+          acc.evidenceCompleteTotal += 1;
+        }
+      });
+      if (String(asRecord(report.weeklyObjectives).text || "").trim()) {
+        acc.objectiveFilledCount += 1;
+      }
+      return acc;
+    },
+    {
+      plannedTotal: 0,
+      executedTotal: 0,
+      blockedTotal: 0,
+      evidenceCompleteTotal: 0,
+      requiredTotal: 0,
+      objectiveFilledCount: 0,
+    },
+  );
+
+  const executionHealthRates = {
+    completionRate:
+      executionHealth.plannedTotal > 0
+        ? Number((executionHealth.executedTotal / executionHealth.plannedTotal).toFixed(2))
+        : 0,
+    blockedRate:
+      executionHealth.executedTotal > 0
+        ? Number((executionHealth.blockedTotal / executionHealth.executedTotal).toFixed(2))
+        : 0,
+    evidenceIntegrityRate:
+      executionHealth.executedTotal > 0
+        ? Number((executionHealth.evidenceCompleteTotal / executionHealth.executedTotal).toFixed(2))
+        : 0,
+    objectiveCarryRate:
+      recentReports.length > 0 ? Number((executionHealth.objectiveFilledCount / recentReports.length).toFixed(2)) : 0,
+  };
+
+  const highRiskRequiredActions = recentReports
+    .filter((report) => report.satisfactionRiskLevel === "HIGH_RED")
+    .flatMap((report) => asArray(report.requiredNextActions))
+    .slice(0, 10);
+
   return {
     totalCount,
     statusCountMap,
@@ -139,5 +256,10 @@ export async function getDashboardSnapshotByCustomer(customerId?: string, custom
     selectedCustomerId: customerId || null,
     topRisks: collectTopNotes(recentReports, "risks"),
     topSupports: collectTopNotes(recentReports, "needSupport"),
+    riskLevelCountMap,
+    recognitionCountMap,
+    executionHealth,
+    executionHealthRates,
+    highRiskRequiredActions,
   };
 }

@@ -34,6 +34,11 @@ export function StageSectionCard({ id, section, label, value }: Props) {
           <p className="text-xs text-muted-foreground">
             一期采用 JSON 存储分段内容。请保持合法 JSON。
           </p>
+          {section === "activitySection" || section === "executionSection" ? (
+            <p className="text-xs text-muted-foreground">
+              建议优先使用下方“执行动作工作台”进行结构化维护。
+            </p>
+          ) : null}
           <Button type="submit" size="sm">
             保存{label}
           </Button>

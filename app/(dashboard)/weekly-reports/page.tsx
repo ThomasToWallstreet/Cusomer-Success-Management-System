@@ -24,6 +24,10 @@ function parseDate(value?: string) {
   return Number.isNaN(date.getTime()) ? undefined : date;
 }
 
+function toRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
+}
+
 export default async function WeeklyReportsPage({
   searchParams,
 }: {
@@ -59,7 +63,7 @@ export default async function WeeklyReportsPage({
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold">周报列表与汇总</h2>
+        <h2 className="text-xl font-semibold">周计划与执行列表</h2>
         <Button asChild className="rounded-full px-4">
           <Link
             href={`/weekly-reports/new?${new URLSearchParams({
@@ -67,7 +71,7 @@ export default async function WeeklyReportsPage({
               ...(role ? { role } : {}),
             }).toString()}`}
           >
-            新建周报
+            新建周计划与执行
           </Link>
         </Button>
       </div>
@@ -111,16 +115,21 @@ export default async function WeeklyReportsPage({
 
       <WeeklyOwnerSummary rows={summary} />
       <WeeklyReportTable
-        rows={reports.map((item) => ({
-          id: item.id,
-          customerName: item.customerRecord?.name || "-",
-          ownerName: item.ownerName,
-          weekStart: item.weekStart,
-          weekEnd: item.weekEnd,
-          summary: item.summary,
-          threadCount: item.threadLinks.length,
-          createdAt: item.createdAt,
-        }))}
+        rows={reports.map((item) => {
+          const conclusions = toRecord(item.qualitativeConclusions);
+          return {
+            id: item.id,
+            customerName: item.customerRecord?.name || "-",
+            ownerName: item.ownerName,
+            weekStart: item.weekStart,
+            weekEnd: item.weekEnd,
+            summary: item.summary,
+            threadCount: item.threadLinks.length,
+            createdAt: item.createdAt,
+            satisfactionRiskLevel: item.satisfactionRiskLevel,
+            keyStakeholderRecognitionResult: String(conclusions.keyStakeholderRecognitionResult || ""),
+          };
+        })}
       />
     </div>
   );

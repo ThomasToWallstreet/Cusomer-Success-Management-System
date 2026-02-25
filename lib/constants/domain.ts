@@ -26,3 +26,46 @@ export const sectionLabels = {
   activitySection: "关键活动",
   executionSection: "执行推进",
 } as const;
+
+export const executionTypeOptions = [
+  { value: "GOAL_DERIVED", label: "G类动作（目标衍生）" },
+  { value: "KCP", label: "KCP动作（关键活动）" },
+] as const;
+
+export const executionStatusOptions = [
+  { value: "TODO", label: "待执行" },
+  { value: "IN_PROGRESS", label: "进行中" },
+  { value: "DONE", label: "已完成" },
+  { value: "BLOCKED", label: "阻塞" },
+] as const;
+
+export const kcpActionTypeOptions = [
+  { value: "ATX_LEFT_SHIFT_PROJECT_CONTROL", label: "从左边管好项目（ATX流程）" },
+  { value: "PROJECT_KICKOFF", label: "项目启动会开展情况" },
+  { value: "DELIVERY_STANDARD_AND_VALUE_REALIZATION", label: "交付标准落地与价值兑现情况" },
+  { value: "SATISFACTION_RECOVERY", label: "满意度修复" },
+  { value: "MOT_TARGET_CONFIRMATION", label: "MOT服务目标确认" },
+  { value: "OTHER", label: "其他" },
+] as const;
+
+export const deliveryBreakthroughRiskResultOptions = [
+  { value: "WORSENING", label: "恶化" },
+  { value: "NO_CHANGE", label: "无变化" },
+  { value: "IMPROVING", label: "改善" },
+  { value: "SIGNIFICANT_IMPROVING", label: "显著改善" },
+] as const;
+
+export const keyStakeholderRecognitionResultOptions = [
+  { value: "NOT_YET_RESULT", label: "未出结果阶段" },
+  { value: "PENDING_CONFIRMATION", label: "效果待确认" },
+  { value: "AVERAGE_RESULT", label: "结果一般" },
+  { value: "GOOD_RECOGNIZED", label: "结果好-关键人认可" },
+  { value: "BAD_NOT_RECOGNIZED", label: "结果不好-关键人不认可" },
+  { value: "NOT_APPLICABLE", label: "不涉及" },
+] as const;
+
+export const satisfactionRiskLevelOptions = [
+  { value: "HIGH_RED", label: "高风险（红色）" },
+  { value: "MEDIUM_YELLOW", label: "中风险（黄色）" },
+  { value: "LOW_GREEN", label: "低风险（绿色）" },
+] as const;

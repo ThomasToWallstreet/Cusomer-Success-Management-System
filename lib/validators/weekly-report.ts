@@ -13,6 +13,23 @@ export const createWeeklyReportSchema = z
     nextWeekPlan: z.string().optional(),
     needSupport: z.string().optional(),
     threadIds: z.array(z.string()).default([]),
+    weeklyObjectives: z.string().min(1, "请填写本周承接目标"),
+    plannedExecutionJson: z.string().min(2, "请填写本周动作清单"),
+    executedItemsJson: z.string().min(2, "请填写执行记录"),
+    requiredNextActionsJson: z.string().min(2, "请填写下周必要动作"),
+    deliveryBreakthroughRiskResult: z.enum(["WORSENING", "NO_CHANGE", "IMPROVING", "SIGNIFICANT_IMPROVING"]),
+    deliveryBreakthroughRiskComment: z.string().min(1, "请填写突破落地风险结果说明"),
+    keyStakeholderRecognitionResult: z.enum([
+      "NOT_YET_RESULT",
+      "PENDING_CONFIRMATION",
+      "AVERAGE_RESULT",
+      "GOOD_RECOGNIZED",
+      "BAD_NOT_RECOGNIZED",
+      "NOT_APPLICABLE",
+    ]),
+    keyStakeholderRecognitionComment: z.string().min(1, "请填写关键人认可结果说明"),
+    satisfactionRiskLevel: z.enum(["HIGH_RED", "MEDIUM_YELLOW", "LOW_GREEN"]),
+    satisfactionRiskReason: z.string().min(1, "请填写满意度风险评估理由"),
   })
   .refine((data) => data.weekStart <= data.weekEnd, {
     message: "周开始日期不能晚于周结束日期",

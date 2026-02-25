@@ -12,6 +12,11 @@ import { ThreadMultiSelect } from "@/components/weekly-report/thread-multi-selec
 import { listCustomers, listCustomersByManager } from "@/lib/repos/customer-repo";
 import { listCustomerIdsByManager, resolveCurrentManager } from "@/lib/repos/manager-assignment-repo";
 import { isSupervisorRole, parseViewerRole } from "@/lib/viewer-role";
+import {
+  deliveryBreakthroughRiskResultOptions,
+  keyStakeholderRecognitionResultOptions,
+  satisfactionRiskLevelOptions,
+} from "@/lib/constants/domain";
 
 export const dynamic = "force-dynamic";
 
@@ -51,6 +56,32 @@ export default async function WeeklyReportNewPage({
   const now = new Date();
   const weekStart = format(startOfWeek(now, { weekStartsOn: 1 }), "yyyy-MM-dd");
   const weekEnd = format(endOfWeek(now, { weekStartsOn: 1 }), "yyyy-MM-dd");
+  const defaultPlannedExecutionJson = JSON.stringify(
+    [
+      {
+        id: "plan-1",
+        type: "GOAL_DERIVED",
+        title: "",
+        linkedGoal: "",
+        owner: ownerQuery || "",
+        status: "TODO",
+      },
+    ],
+    null,
+    2,
+  );
+  const defaultExecutedItemsJson = JSON.stringify([], null, 2);
+  const defaultRequiredNextActionsJson = JSON.stringify(
+    [
+      {
+        title: "",
+        source: "",
+        priority: "P1",
+      },
+    ],
+    null,
+    2,
+  );
 
   return (
     <div className="space-y-4">
@@ -62,7 +93,7 @@ export default async function WeeklyReportNewPage({
           }).toString()}`}
         >
           <ArrowLeft className="mr-1 h-4 w-4" />
-          返回周报列表
+          返回周计划与执行列表
         </Link>
       </Button>
 
@@ -130,8 +161,113 @@ export default async function WeeklyReportNewPage({
           <ThreadMultiSelect threadOptions={threads} selectedOwner={ownerQuery} />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="summary">本周总结 *</Label>
-          <Textarea id="summary" name="summary" rows={4} required />
+          <Label htmlFor="weeklyObjectives">本周承接目标 *</Label>
+          <Textarea
+            id="weeklyObjectives"
+            name="weeklyObjectives"
+            rows={3}
+            required
+            placeholder="按扩大收入/组织关系提升/需求理解分别填写本周承接目标。"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="summary">本周执行总览 *</Label>
+          <Textarea id="summary" name="summary" rows={3} required placeholder="总结本周关键进展与产出。" />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="plannedExecutionJson">本周动作清单（JSON数组）*</Label>
+          <Textarea id="plannedExecutionJson" name="plannedExecutionJson" rows={8} defaultValue={defaultPlannedExecutionJson} required />
+          <p className="text-xs text-muted-foreground">
+            每条建议包含：id/type(GOAL_DERIVED或KCP)/title/linkedGoal/owner/status。
+          </p>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="executedItemsJson">执行记录（JSON数组）*</Label>
+          <Textarea id="executedItemsJson" name="executedItemsJson" rows={8} defaultValue={defaultExecutedItemsJson} required />
+          <p className="text-xs text-muted-foreground">每条建议包含：executionItemId/status/resultSummary/evidence/blockedReason。</p>
+        </div>
+        <div className="rounded-md border p-3">
+          <h3 className="mb-3 text-sm font-semibold">定性结论（用于满意度风险评估）</h3>
+          <div className="grid gap-3 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="deliveryBreakthroughRiskResult">突破落地风险结果 *</Label>
+              <select
+                id="deliveryBreakthroughRiskResult"
+                name="deliveryBreakthroughRiskResult"
+                className="h-9 w-full rounded-md border px-3 text-sm"
+                defaultValue="NO_CHANGE"
+                required
+              >
+                {deliveryBreakthroughRiskResultOptions.map((item) => (
+                  <option key={item.value} value={item.value}>
+                    {item.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="keyStakeholderRecognitionResult">关键人认可结果 *</Label>
+              <select
+                id="keyStakeholderRecognitionResult"
+                name="keyStakeholderRecognitionResult"
+                className="h-9 w-full rounded-md border px-3 text-sm"
+                defaultValue="PENDING_CONFIRMATION"
+                required
+              >
+                {keyStakeholderRecognitionResultOptions.map((item) => (
+                  <option key={item.value} value={item.value}>
+                    {item.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div className="mt-3 grid gap-3 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="deliveryBreakthroughRiskComment">突破落地风险结果说明 *</Label>
+              <Textarea id="deliveryBreakthroughRiskComment" name="deliveryBreakthroughRiskComment" rows={3} required />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="keyStakeholderRecognitionComment">关键人认可结果说明 *</Label>
+              <Textarea id="keyStakeholderRecognitionComment" name="keyStakeholderRecognitionComment" rows={3} required />
+            </div>
+          </div>
+        </div>
+        <div className="rounded-md border p-3">
+          <h3 className="mb-3 text-sm font-semibold">满意度风险评估</h3>
+          <div className="grid gap-3 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="satisfactionRiskLevel">当前风险等级 *</Label>
+              <select
+                id="satisfactionRiskLevel"
+                name="satisfactionRiskLevel"
+                className="h-9 w-full rounded-md border px-3 text-sm"
+                defaultValue="MEDIUM_YELLOW"
+                required
+              >
+                {satisfactionRiskLevelOptions.map((item) => (
+                  <option key={item.value} value={item.value}>
+                    {item.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="satisfactionRiskReason">风险评估理由 *</Label>
+              <Textarea id="satisfactionRiskReason" name="satisfactionRiskReason" rows={3} required />
+            </div>
+          </div>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="requiredNextActionsJson">下周必要动作（JSON数组）*</Label>
+          <Textarea
+            id="requiredNextActionsJson"
+            name="requiredNextActionsJson"
+            rows={6}
+            defaultValue={defaultRequiredNextActionsJson}
+            required
+          />
+          <p className="text-xs text-muted-foreground">每条建议包含：title/source/priority。</p>
         </div>
         <div className="space-y-2">
           <Label htmlFor="risks">风险</Label>
@@ -146,10 +282,10 @@ export default async function WeeklyReportNewPage({
           <Textarea id="needSupport" name="needSupport" rows={3} />
         </div>
         <Button type="submit" disabled={!customerIdQuery}>
-          保存周报
+          保存周计划与执行
         </Button>
         {!customerIdQuery ? (
-          <p className="text-sm text-amber-600">请先在上方选择客户，再创建周报。</p>
+          <p className="text-sm text-amber-600">请先在上方选择客户，再创建周计划与执行。</p>
         ) : null}
       </form>
     </div>

@@ -13,6 +13,23 @@ type Row = {
   summary: string;
   threadCount: number;
   createdAt: Date;
+  satisfactionRiskLevel?: string | null;
+  keyStakeholderRecognitionResult?: string | null;
+};
+
+const riskLabelMap: Record<string, string> = {
+  HIGH_RED: "高风险（红色）",
+  MEDIUM_YELLOW: "中风险（黄色）",
+  LOW_GREEN: "低风险（绿色）",
+};
+
+const recognitionLabelMap: Record<string, string> = {
+  NOT_YET_RESULT: "未出结果阶段",
+  PENDING_CONFIRMATION: "效果待确认",
+  AVERAGE_RESULT: "结果一般",
+  GOOD_RECOGNIZED: "结果好-关键人认可",
+  BAD_NOT_RECOGNIZED: "结果不好-关键人不认可",
+  NOT_APPLICABLE: "不涉及",
 };
 
 export function WeeklyReportTable({ rows }: { rows: Row[] }) {
@@ -25,6 +42,8 @@ export function WeeklyReportTable({ rows }: { rows: Row[] }) {
             <TableHead>Owner</TableHead>
             <TableHead>周区间</TableHead>
             <TableHead>摘要</TableHead>
+            <TableHead>关键人认可结果</TableHead>
+            <TableHead>满意度风险</TableHead>
             <TableHead>关联关键场景数</TableHead>
             <TableHead>创建时间</TableHead>
           </TableRow>
@@ -43,6 +62,8 @@ export function WeeklyReportTable({ rows }: { rows: Row[] }) {
                   {row.summary}
                 </Link>
               </TableCell>
+              <TableCell>{recognitionLabelMap[row.keyStakeholderRecognitionResult || ""] || "-"}</TableCell>
+              <TableCell>{riskLabelMap[row.satisfactionRiskLevel || ""] || "-"}</TableCell>
               <TableCell>{row.threadCount}</TableCell>
               <TableCell className="text-muted-foreground">
                 {format(row.createdAt, "yyyy-MM-dd HH:mm", { locale: zhCN })}

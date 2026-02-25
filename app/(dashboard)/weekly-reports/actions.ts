@@ -21,6 +21,16 @@ export async function createWeeklyReportAction(formData: FormData) {
     nextWeekPlan: formData.get("nextWeekPlan"),
     needSupport: formData.get("needSupport"),
     threadIds: formData.getAll("threadIds"),
+    weeklyObjectives: formData.get("weeklyObjectives"),
+    plannedExecutionJson: formData.get("plannedExecutionJson"),
+    executedItemsJson: formData.get("executedItemsJson"),
+    requiredNextActionsJson: formData.get("requiredNextActionsJson"),
+    deliveryBreakthroughRiskResult: formData.get("deliveryBreakthroughRiskResult"),
+    deliveryBreakthroughRiskComment: formData.get("deliveryBreakthroughRiskComment"),
+    keyStakeholderRecognitionResult: formData.get("keyStakeholderRecognitionResult"),
+    keyStakeholderRecognitionComment: formData.get("keyStakeholderRecognitionComment"),
+    satisfactionRiskLevel: formData.get("satisfactionRiskLevel"),
+    satisfactionRiskReason: formData.get("satisfactionRiskReason"),
   });
 
   if (!parsed.success) {

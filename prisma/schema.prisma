@@ -92,6 +92,13 @@ model WeeklyReport {
   risks          String?
   nextWeekPlan   String?
   needSupport    String?
+  weeklyObjectives       Json?
+  plannedExecutionItems  Json?
+  executedItems          Json?
+  qualitativeConclusions Json?
+  satisfactionRiskLevel  String?
+  satisfactionRiskReason String?
+  requiredNextActions    Json?
   createdAt      DateTime             @default(now())
   threadLinks    WeeklyReportThread[]
   customerRecord Customer?            @relation(fields: [customerId], references: [id], onDelete: SetNull)

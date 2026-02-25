@@ -168,9 +168,9 @@ export function ThreadCreateWorkflowForm({
           className="space-y-5"
           onFocusCapture={(event) => {
             const target = event.target as HTMLElement | null;
-            const module = target?.closest("[data-module]")?.getAttribute("data-module") as ModuleKey | null;
-            if (module && module !== "context-info") {
-              setActiveFlowStep(module);
+            const currentModule = target?.closest("[data-module]")?.getAttribute("data-module") as ModuleKey | null;
+            if (currentModule && currentModule !== "context-info") {
+              setActiveFlowStep(currentModule);
             }
           }}
         >

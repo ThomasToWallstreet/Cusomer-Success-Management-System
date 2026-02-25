@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { CustomerPlanList } from "@/components/thread/customer-plan-list";
 import {
+  countThreadsUpdatedInLastDays,
   listDistinctCustomers,
   listThreads,
 } from "@/lib/repos/thread-repo";
@@ -43,9 +44,10 @@ export default async function ThreadsPage({
     keyword: getOne(query.keyword),
   };
 
-  const [rows, customers] = await Promise.all([
+  const [rows, customers, updated7dCount] = await Promise.all([
     listThreads(filters),
     listDistinctCustomers(allowedCustomerIds),
+    countThreadsUpdatedInLastDays(filters, 7),
   ]);
   const grouped = Object.values(
     rows.reduce<
@@ -75,6 +77,13 @@ export default async function ThreadsPage({
       return acc;
     }, {}),
   ).sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
+  const summary = {
+    customerCount: grouped.length,
+    scenarioCount: rows.length,
+    highRiskCount: rows.filter((row) => row.riskLevel === "RED").length,
+    inProgressCount: rows.filter((row) => row.stageStatus === "IN_PROGRESS").length,
+    updated7dCount,
+  };
 
   const createParams = new URLSearchParams({
     ...(filters.customerId ? { customerId: filters.customerId } : {}),
@@ -130,6 +139,28 @@ export default async function ThreadsPage({
           <Link href={baseParams ? `/threads?${baseParams}` : "/threads"}>重置</Link>
         </Button>
       </form>
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        <div className="rounded-lg border bg-card p-3">
+          <p className="text-xs text-muted-foreground">我负责客户数</p>
+          <p className="mt-1 text-2xl font-semibold">{summary.customerCount}</p>
+        </div>
+        <div className="rounded-lg border bg-card p-3">
+          <p className="text-xs text-muted-foreground">关键场景总数</p>
+          <p className="mt-1 text-2xl font-semibold">{summary.scenarioCount}</p>
+        </div>
+        <div className="rounded-lg border bg-card p-3">
+          <p className="text-xs text-muted-foreground">高风险场景数</p>
+          <p className="mt-1 text-2xl font-semibold">{summary.highRiskCount}</p>
+        </div>
+        <div className="rounded-lg border bg-card p-3">
+          <p className="text-xs text-muted-foreground">推进中场景数</p>
+          <p className="mt-1 text-2xl font-semibold">{summary.inProgressCount}</p>
+        </div>
+        <div className="rounded-lg border bg-card p-3">
+          <p className="text-xs text-muted-foreground">近7天有更新场景数</p>
+          <p className="mt-1 text-2xl font-semibold">{summary.updated7dCount}</p>
+        </div>
+      </div>
       <CustomerPlanList groups={grouped} managerName={managerName} role={role} />
     </div>
   );

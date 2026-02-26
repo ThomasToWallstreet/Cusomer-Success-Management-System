@@ -184,6 +184,22 @@ export async function updateThreadSection(
   });
 }
 
+export async function updateThreadOverview(
+  id: string,
+  input: {
+    keyProjectScenario: string;
+    productLine?: string | null;
+  },
+) {
+  return prisma.keySuccessScenario.update({
+    where: { id },
+    data: {
+      keyProjectScenario: input.keyProjectScenario,
+      productLine: input.productLine || null,
+    },
+  });
+}
+
 export async function countRiskByOwnerForThreadIds(threadIds: string[]) {
   const rows = await prisma.keySuccessScenario.groupBy({
     by: ["ownerName", "riskLevel"],

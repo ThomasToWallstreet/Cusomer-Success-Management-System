@@ -89,3 +89,20 @@ export const updateThreadSectionSchema = z.object({
   ]),
   sectionJson: z.string().min(1, "请填写 JSON 内容"),
 });
+
+export const updateThreadPlanSchema = z.object({
+  id: z.string().min(1),
+  keyProjectScenario: z.string().min(1, "项目场景必填"),
+  productLine: z.string().optional(),
+  keyScenarioDescription: z.string().min(1, "关键场景说明必填"),
+  targetDimension: z.array(z.string()).min(1, "目标维度必填"),
+  targetDescription: z.string().min(1, "目标描述必填"),
+  businessStage: z.string().min(1, "业务阶段必填"),
+  businessGoalAchieved: z.string().min(1, "经营目标是否达成必填"),
+  orgCurrentState: z.string().min(1, "整体组织关系现状必填"),
+  orgChanges: z.string().min(1, "变化情况必填"),
+  businessNeedAnalysis: z.string().min(1, "客户业务需求分析必填"),
+  personalNeeds: z.string().min(1, "关键人的个人需求必填"),
+  smartGoal: z.string().min(1, "客户成功目标（SMART）必填"),
+  alignedWithCustomer: z.string().min(1, "是否与客户完成对齐必填"),
+});

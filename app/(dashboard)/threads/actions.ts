@@ -3,13 +3,14 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { createThread, updateThreadMeta, updateThreadSection } from "@/lib/repos/thread-repo";
+import { createThread, getThreadDetail, updateThreadMeta, updateThreadOverview, updateThreadSection } from "@/lib/repos/thread-repo";
 import { getCustomerById, getOrCreateCustomerByName } from "@/lib/repos/customer-repo";
 import { listCustomerIdsByManager } from "@/lib/repos/manager-assignment-repo";
 import {
   createThreadSchema,
   createThreadWorkflowSchema,
   updateThreadMetaSchema,
+  updateThreadPlanSchema,
   updateThreadSectionSchema,
 } from "@/lib/validators/thread";
 import { isSupervisorRole, parseViewerRole } from "@/lib/viewer-role";
@@ -248,4 +249,73 @@ export async function updateThreadSectionAction(formData: FormData) {
 
   await updateThreadSection(parsed.data.id, parsed.data.section, payload as never);
   revalidatePath(`/threads/${parsed.data.id}`);
+}
+
+export async function updateThreadPlanAction(formData: FormData) {
+  const parsed = updateThreadPlanSchema.safeParse({
+    id: formData.get("id"),
+    keyProjectScenario: formData.get("keyProjectScenario"),
+    productLine: formData.get("productLine"),
+    keyScenarioDescription: formData.get("keyScenarioDescription"),
+    targetDimension: formData.getAll("targetDimension"),
+    targetDescription: formData.get("targetDescription"),
+    businessStage: formData.get("businessStage"),
+    businessGoalAchieved: formData.get("businessGoalAchieved"),
+    orgCurrentState: formData.get("orgCurrentState"),
+    orgChanges: formData.get("orgChanges"),
+    businessNeedAnalysis: formData.get("businessNeedAnalysis"),
+    personalNeeds: formData.get("personalNeeds"),
+    smartGoal: formData.get("smartGoal"),
+    alignedWithCustomer: formData.get("alignedWithCustomer"),
+  });
+
+  if (!parsed.success) {
+    throw new Error(parsed.error.issues[0]?.message || "更新客户成功计划失败");
+  }
+
+  const current = await getThreadDetail(parsed.data.id);
+  if (!current) {
+    throw new Error("客户成功计划不存在");
+  }
+
+  const currentGoal = current.goalSection && typeof current.goalSection === "object" ? (current.goalSection as Record<string, unknown>) : {};
+  const currentOrg = current.orgSection && typeof current.orgSection === "object" ? (current.orgSection as Record<string, unknown>) : {};
+  const currentSuccess =
+    current.successSection && typeof current.successSection === "object"
+      ? (current.successSection as Record<string, unknown>)
+      : {};
+  const currentActivity =
+    current.activitySection && typeof current.activitySection === "object"
+      ? (current.activitySection as Record<string, unknown>)
+      : {};
+
+  await updateThreadOverview(parsed.data.id, {
+    keyProjectScenario: parsed.data.keyProjectScenario,
+    productLine: parsed.data.productLine || null,
+  });
+  await updateThreadSection(parsed.data.id, "activitySection", {
+    ...currentActivity,
+    keyScenarioDescription: parsed.data.keyScenarioDescription,
+  } as never);
+  await updateThreadSection(parsed.data.id, "goalSection", {
+    ...currentGoal,
+    targetDimension: parsed.data.targetDimension,
+    targetDescription: parsed.data.targetDescription,
+    businessStage: parsed.data.businessStage,
+    businessGoalAchieved: parsed.data.businessGoalAchieved,
+  } as never);
+  await updateThreadSection(parsed.data.id, "orgSection", {
+    ...currentOrg,
+    orgCurrentState: parsed.data.orgCurrentState,
+    orgChanges: parsed.data.orgChanges,
+  } as never);
+  await updateThreadSection(parsed.data.id, "successSection", {
+    ...currentSuccess,
+    businessNeedAnalysis: parsed.data.businessNeedAnalysis,
+    personalNeeds: parsed.data.personalNeeds,
+    smartGoal: parsed.data.smartGoal,
+    alignedWithCustomer: parsed.data.alignedWithCustomer,
+  } as never);
+  revalidatePath(`/threads/${parsed.data.id}`);
+  revalidatePath("/threads");
 }

@@ -1,3 +1,15 @@
+"use client";
+
+import {
+  CartesianGrid,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+
 type RateItem = {
   label: string;
   ratio: number;
@@ -18,30 +30,32 @@ export function GoalProgressPanel({
   sampleSize: number;
   compact?: boolean;
 }) {
+  const progressToneByIndex = ["bg-emerald-500", "bg-amber-500", "bg-sky-500"] as const;
   return (
-    <div className={`rounded-md border ${compact ? "p-2" : "p-3"}`}>
+    <div className={`flex h-full flex-col rounded-md border ${compact ? "p-2" : "p-3"}`}>
       <div className={`mb-2 flex items-center justify-between ${compact ? "text-xs" : "text-sm"}`}>
         <p className="font-medium">{title}</p>
         <p className="text-muted-foreground">样本场景：{sampleSize}</p>
       </div>
-      <div className="space-y-2">
-        {items.map((item) => {
+      <div className={`grid flex-1 grid-rows-3 ${compact ? "gap-2" : "gap-3"}`}>
+        {items.map((item, idx) => {
           const ratio = Math.max(0, Math.min(1, item.ratio));
+          const tone = progressToneByIndex[idx] || "bg-primary";
           return (
-            <div key={item.label} className="space-y-1">
+            <div key={item.label} className="flex h-full flex-col justify-center space-y-1">
               <div className={`flex items-center justify-between ${compact ? "text-xs" : "text-sm"}`}>
                 <span>{item.label}</span>
                 <span className="text-muted-foreground">{toPercent(ratio)}</span>
               </div>
               <div className="h-2 rounded bg-muted">
-                <div className="h-2 rounded bg-primary" style={{ width: `${ratio * 100}%` }} />
+                <div className={`h-2 rounded ${tone}`} style={{ width: `${ratio * 100}%` }} />
               </div>
             </div>
           );
         })}
       </div>
       <p className={`mt-2 text-muted-foreground ${compact ? "text-[11px]" : "text-xs"}`}>
-        完成标准：收入=复购/续费/业务价值兑现；组织关系=变化情况显著提升；需求理解=充分对齐或部分对齐。
+        完成标准：收入=复购/续费/业务价值兑现；组织关系=有提升变化；需求理解=充分对齐或部分对齐。
       </p>
     </div>
   );
@@ -88,43 +102,58 @@ export function GoalTrendMini({
     valueRate: number;
   }>;
 }) {
-  const normalized = points.map((item) => ({
-    revenue: Math.max(0, Math.min(1, item.revenueRate)),
-    org: Math.max(0, Math.min(1, item.orgRate)),
-    value: Math.max(0, Math.min(1, item.valueRate)),
+  const normalized = points.map((item, idx) => ({
+    week: `W${idx + 1}`,
+    revenue: Math.max(0, Math.min(1, item.revenueRate)) * 100,
+    org: Math.max(0, Math.min(1, item.orgRate)) * 100,
+    value: Math.max(0, Math.min(1, item.valueRate)) * 100,
   }));
 
   const latest = normalized[normalized.length - 1];
 
   return (
-    <div className="rounded-md border bg-muted/20 px-3 py-2">
+    <div className="h-full rounded-md border bg-muted/20 px-3 py-2">
       <div className="mb-2 flex items-center justify-between text-xs">
         <p className="font-medium text-foreground">{title}</p>
         <p className="text-muted-foreground">{normalized.length} 周</p>
       </div>
-      <div className="space-y-2">
-        {[
-          { key: "revenue", label: "经营目标-扩大收入", tone: "bg-emerald-500" },
-          { key: "org", label: "客户成功-组织关系", tone: "bg-amber-500" },
-          { key: "value", label: "客户成功-价值兑现", tone: "bg-sky-500" },
-        ].map((row) => (
-          <div key={row.key} className="grid grid-cols-[136px_minmax(0,1fr)_40px] items-center gap-2">
-            <p className="text-[11px] text-muted-foreground">{row.label}</p>
-            <div className="flex h-4 items-end gap-1">
-              {normalized.map((point, idx) => {
-                const ratio = point[row.key as "revenue" | "org" | "value"];
-                return (
-                  <div key={`${row.key}-${idx}`} className="h-4 flex-1 rounded-sm bg-muted">
-                    <div className={`w-full rounded-sm ${row.tone}`} style={{ height: `${Math.max(8, ratio * 100)}%` }} />
-                  </div>
-                );
-              })}
-            </div>
-            <p className="text-right text-[11px] text-muted-foreground">
-              {latest ? `${Math.round(latest[row.key as "revenue" | "org" | "value"] * 100)}%` : "-"}
-            </p>
-          </div>
-        ))}
+      <div className="h-[170px] w-full">
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={normalized} margin={{ top: 8, right: 6, left: -18, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" vertical={false} />
+            <XAxis dataKey="week" tickLine={false} axisLine={false} tick={{ fontSize: 11 }} />
+            <YAxis
+              domain={[0, 100]}
+              tickLine={false}
+              axisLine={false}
+              width={30}
+              tick={{ fontSize: 11 }}
+              tickFormatter={(value) => `${value}%`}
+            />
+            <Tooltip
+              formatter={(value: number | undefined) => `${Math.round(value || 0)}%`}
+              labelFormatter={(label) => `周次：${label}`}
+              contentStyle={{ borderRadius: 8, fontSize: 12 }}
+            />
+            <Line type="monotone" dataKey="revenue" stroke="#10b981" strokeWidth={2} dot={{ r: 2 }} />
+            <Line type="monotone" dataKey="org" stroke="#f59e0b" strokeWidth={2} dot={{ r: 2 }} />
+            <Line type="monotone" dataKey="value" stroke="#0ea5e9" strokeWidth={2} dot={{ r: 2 }} />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+      <div className="mt-2 flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
+        <span className="inline-flex items-center gap-1">
+          <span className="h-2 w-2 rounded-full bg-emerald-500" />
+          经营目标-扩大收入（{latest ? `${Math.round(latest.revenue)}%` : "-"}）
+        </span>
+        <span className="inline-flex items-center gap-1">
+          <span className="h-2 w-2 rounded-full bg-amber-500" />
+          客户成功-组织关系（{latest ? `${Math.round(latest.org)}%` : "-"}）
+        </span>
+        <span className="inline-flex items-center gap-1">
+          <span className="h-2 w-2 rounded-full bg-sky-500" />
+          客户成功-价值兑现（{latest ? `${Math.round(latest.value)}%` : "-"}）
+        </span>
       </div>
     </div>
   );

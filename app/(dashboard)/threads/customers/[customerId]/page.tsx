@@ -203,9 +203,6 @@ export default async function CustomerPlanDetailPage({
                       三目标完成：{scenarioProgress.doneCount}/{scenarioProgress.totalCount}
                     </span>
                   </div>
-                  <div className="mt-2 h-1.5 rounded bg-muted">
-                    <div className="h-1.5 rounded bg-primary" style={{ width: `${scenarioProgress.doneRatio * 100}%` }} />
-                  </div>
                 </Link>
               );
             })}

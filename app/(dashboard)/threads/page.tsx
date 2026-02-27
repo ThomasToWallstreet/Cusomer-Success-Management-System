@@ -11,7 +11,7 @@ import {
   listDistinctCustomers,
   listThreads,
 } from "@/lib/repos/thread-repo";
-import { getBusinessStageProgress, getCustomerGoalProgressSummary } from "@/lib/thread-goal-progress";
+import { getCustomerGoalProgressSummary } from "@/lib/thread-goal-progress";
 import { resolveCurrentManager, listCustomerIdsByManager } from "@/lib/repos/manager-assignment-repo";
 import { isSupervisorRole, parseViewerRole } from "@/lib/viewer-role";
 
@@ -92,7 +92,6 @@ export default async function ThreadsPage({
   const groupedWithProgress = grouped.map((group) => ({
     ...group,
     goalProgress: getCustomerGoalProgressSummary(group.scenarios),
-    stageProgress: getBusinessStageProgress(group.scenarios),
     trend: group.customerId ? trendMap[group.customerId] : undefined,
   }));
   const summary = {
@@ -159,7 +158,7 @@ export default async function ThreadsPage({
       </form>
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
         <div className="rounded-lg border bg-card p-3">
-          <p className="text-xs text-muted-foreground">我负责客户数</p>
+          <p className="text-xs text-muted-foreground">负责客户数</p>
           <p className="mt-1 text-2xl font-semibold">{summary.customerCount}</p>
         </div>
         <div className="rounded-lg border bg-card p-3">

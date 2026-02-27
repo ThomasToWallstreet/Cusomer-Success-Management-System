@@ -14,9 +14,9 @@ export const stageStatusOptions = [
 ] as const;
 
 export const riskLevelOptions = [
-  { value: "GREEN", label: "绿色" },
-  { value: "YELLOW", label: "黄色" },
-  { value: "RED", label: "红色" },
+  { value: "GREEN", label: "低风险" },
+  { value: "YELLOW", label: "中风险" },
+  { value: "RED", label: "高风险" },
 ] as const;
 
 export const sectionLabels = {

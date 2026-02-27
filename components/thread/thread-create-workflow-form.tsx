@@ -506,7 +506,7 @@ export function ThreadCreateWorkflowForm({
                         setStakeholders(next);
                       }}
                     >
-                      <option value="">现状</option>
+                      <option value="">满意度现状</option>
                       {stakeholderCurrentOptions.map((option) => (
                         <option key={option} value={option}>
                           {option}

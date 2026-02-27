@@ -1,7 +1,7 @@
 import type { RiskLevel, Stage, StageStatus } from "@prisma/client";
 
 import { updateThreadMetaAction } from "@/app/(dashboard)/threads/actions";
-import { stageOptions, riskLevelOptions, stageStatusOptions } from "@/lib/constants/domain";
+import { riskLevelOptions, stageStatusOptions } from "@/lib/constants/domain";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -15,28 +15,15 @@ type Props = {
 
 export function ThreadStepper({ id, stage, stageStatus, riskLevel, nextAction }: Props) {
   return (
-    <form action={updateThreadMetaAction} className="space-y-3 rounded-lg border bg-card p-4">
+    <form action={updateThreadMetaAction} className="space-y-2 rounded-lg border bg-card p-3">
       <input type="hidden" name="id" value={id} />
-      <div className="grid gap-3 md:grid-cols-4">
-        <div className="space-y-2">
-          <p className="text-sm font-medium">阶段</p>
-          <Select name="stage" defaultValue={stage}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {stageOptions.map((item) => (
-                <SelectItem key={item.value} value={item.value}>
-                  {item.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="space-y-2">
-          <p className="text-sm font-medium">阶段状态</p>
+      <input type="hidden" name="stage" value={stage} />
+      <input type="hidden" name="nextAction" value={nextAction || ""} />
+      <div className="flex flex-wrap items-end gap-2">
+        <div className="min-w-[170px] flex-1 space-y-1">
+          <p className="text-xs font-medium text-muted-foreground">阶段状态</p>
           <Select name="stageStatus" defaultValue={stageStatus}>
-            <SelectTrigger>
+            <SelectTrigger className="h-8">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -48,10 +35,10 @@ export function ThreadStepper({ id, stage, stageStatus, riskLevel, nextAction }:
             </SelectContent>
           </Select>
         </div>
-        <div className="space-y-2">
-          <p className="text-sm font-medium">风险等级</p>
+        <div className="min-w-[170px] max-w-[220px] flex-1 space-y-1">
+          <p className="text-xs font-medium text-muted-foreground">风险等级</p>
           <Select name="riskLevel" defaultValue={riskLevel}>
-            <SelectTrigger>
+            <SelectTrigger className="h-8">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -63,16 +50,10 @@ export function ThreadStepper({ id, stage, stageStatus, riskLevel, nextAction }:
             </SelectContent>
           </Select>
         </div>
-        <div className="space-y-2">
-          <p className="text-sm font-medium">NextAction</p>
-          <input
-            name="nextAction"
-            defaultValue={nextAction || ""}
-            className="h-9 w-full rounded-md border px-3 text-sm"
-          />
-        </div>
+        <Button type="submit" size="sm" className="cursor-pointer whitespace-nowrap">
+          更新关键场景状态
+        </Button>
       </div>
-      <Button type="submit">更新关键场景状态</Button>
     </form>
   );
 }

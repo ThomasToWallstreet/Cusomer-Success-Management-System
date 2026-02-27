@@ -21,6 +21,20 @@ function toList(value: unknown) {
   return Array.isArray(value) ? value.filter((item) => typeof item === "string") : [];
 }
 
+function getStakeholderCurrentStateBadgeClass(value: unknown) {
+  const state = typeof value === "string" ? value.trim() : "";
+  if (state === "认可") return "border-emerald-200 bg-emerald-50 text-emerald-700";
+  if (state === "一般") return "border-amber-200 bg-amber-50 text-amber-700";
+  if (state === "无感知") return "border-slate-200 bg-slate-100 text-slate-700";
+  if (state === "不满意") return "border-rose-200 bg-rose-50 text-rose-700";
+  return "border-slate-200 bg-slate-100 text-slate-600";
+}
+
+function getStakeholderCurrentStateText(value: unknown) {
+  const state = typeof value === "string" ? value.trim() : "";
+  return state || "-";
+}
+
 function ReadonlyRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="grid grid-cols-[160px_minmax(0,1fr)] items-start gap-3">
@@ -63,8 +77,17 @@ export function ThreadDetailReadonly({ thread }: Props) {
           {stakeholders.length ? (
             stakeholders.map((person, index) => (
               <div key={`stakeholder-${index}`} className="rounded-md border bg-muted/20 p-2">
-                <p className="text-sm font-medium">
-                  {toText(person.name)} · {toText(person.department)} · {toText(person.level)}
+                <p className="flex flex-wrap items-center gap-1.5 text-sm font-medium">
+                  <span>
+                    {toText(person.name)} · {toText(person.department)} · {toText(person.level)}
+                  </span>
+                  <span
+                    className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs ${getStakeholderCurrentStateBadgeClass(person.currentState)}`}
+                    title={`满意度现状：${getStakeholderCurrentStateText(person.currentState)}`}
+                    aria-label={`满意度现状：${getStakeholderCurrentStateText(person.currentState)}`}
+                  >
+                    满意度现状：{getStakeholderCurrentStateText(person.currentState)}
+                  </span>
                 </p>
                 <p className="text-xs text-muted-foreground">{toText(person.description)}</p>
               </div>

@@ -150,6 +150,15 @@ export type BusinessStageProgress = {
   stages: Array<{ value: string; label: string; order: number; reached: boolean }>;
 };
 
+export function getScenarioBusinessStageLabel(scenario: ScenarioLike): string {
+  const goal = toRecord(scenario.goalSection);
+  const stage = toText(goal.businessStage);
+  if (!stage) return "未识别";
+  const matched = businessStageOptions.find((item) => item.value === stage);
+  const label = matched?.label || stage;
+  return label.replace(/\(/g, "（").replace(/\)/g, "）");
+}
+
 export function getBusinessStageProgress(scenarios: ScenarioLike[]): BusinessStageProgress {
   const counts = new Map<string, number>();
   for (const scenario of scenarios) {

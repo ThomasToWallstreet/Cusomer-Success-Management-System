@@ -27,6 +27,12 @@ function getWeekStart(date = new Date()) {
   return current;
 }
 
+function toWeekKey(date: Date) {
+  const current = new Date(date);
+  current.setHours(0, 0, 0, 0);
+  return current.toISOString().slice(0, 10);
+}
+
 export async function ensureCustomerGoalWeeklySnapshot(
   customerId: string,
   scenarios: ScenarioLike[],
@@ -96,23 +102,36 @@ export async function listLatestGoalSnapshotTrendByCustomerIds(customerIds: stri
       bucket[row.customerId].push(row);
     }
 
+    const currentWeekStart = getWeekStart();
+    const weekStarts = Array.from({ length: weeks }, (_, idx) => {
+      const weekStart = new Date(currentWeekStart);
+      weekStart.setDate(currentWeekStart.getDate() - (weeks - idx - 1) * 7);
+      return weekStart;
+    });
+
     return Object.fromEntries(
-      Object.entries(bucket).map(([customerId, list]) => {
-        const first = list[0];
-        const last = list[list.length - 1];
+      customerIds.map((customerId) => {
+        const list = bucket[customerId] || [];
+        const byWeek = new Map(list.map((item) => [toWeekKey(item.weekStart), item] as const));
+        const points = weekStarts.map((weekStart) => {
+          const snapshot = byWeek.get(toWeekKey(weekStart));
+          return {
+            weekStart,
+            revenueRate: snapshot?.revenueRate || 0,
+            orgRate: snapshot?.orgRate || 0,
+            valueRate: snapshot?.valueRate || 0,
+          };
+        });
+        const first = points[0];
+        const last = points[points.length - 1];
         return [
           customerId,
           {
             revenueDelta: (last?.revenueRate || 0) - (first?.revenueRate || 0),
             orgDelta: (last?.orgRate || 0) - (first?.orgRate || 0),
             valueDelta: (last?.valueRate || 0) - (first?.valueRate || 0),
-            weeks: list.length,
-            points: list.map((item) => ({
-              weekStart: item.weekStart,
-              revenueRate: item.revenueRate,
-              orgRate: item.orgRate,
-              valueRate: item.valueRate,
-            })),
+            weeks: points.length,
+            points,
           },
         ];
       }),

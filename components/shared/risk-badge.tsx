@@ -7,9 +7,9 @@ const riskStyle = {
 } as const;
 
 const riskLabel = {
-  GREEN: "绿色",
-  YELLOW: "黄色",
-  RED: "红色",
+  GREEN: "低风险",
+  YELLOW: "中风险",
+  RED: "高风险",
 } as const;
 
 export function RiskBadge({ riskLevel }: { riskLevel: keyof typeof riskStyle }) {

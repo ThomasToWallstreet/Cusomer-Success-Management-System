@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { businessStageOptions } from "@/lib/constants/domain";
 import { cn } from "@/lib/utils";
 
 type StakeholderRow = {
@@ -71,13 +72,6 @@ const productLineOptions = [
 ] as const;
 
 const targetDimensionOptions = ["复购", "新业务突破", "续约"] as const;
-const businessStageOptions = [
-  "1选择向正确客户销售",
-  "2测出效果优势并验证可落地性",
-  "3招投标到订单",
-  "4帮客户(关键人)快速兑现价值",
-  "5持续经营扩大业务合作范围",
-] as const;
 const businessGoalResultOptions = [
   "复购已下单",
   "复购机会已立项",
@@ -373,8 +367,8 @@ export function ThreadCreateWorkflowForm({
                 <select id="businessStage" name="businessStage" className="h-9 w-full rounded-md border bg-background px-3 text-sm" required>
                   <option value="">请选择</option>
                   {businessStageOptions.map((option) => (
-                    <option key={option} value={option}>
-                      {option}
+                    <option key={option.value} value={option.value}>
+                      {option.value}
                     </option>
                   ))}
                 </select>

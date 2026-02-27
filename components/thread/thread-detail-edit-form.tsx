@@ -3,15 +3,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { businessStageOptions } from "@/lib/constants/domain";
 
 const targetDimensionOptions = ["复购", "新业务突破", "续约"] as const;
-const businessStageOptions = [
-  "1选择向正确客户销售",
-  "2测出效果优势并验证可落地性",
-  "3招投标到订单",
-  "4帮客户(关键人)快速兑现价值",
-  "5持续经营扩大业务合作范围",
-] as const;
 const businessGoalResultOptions = ["复购已下单", "复购机会已立项", "续费已达成", "突破业务价值已兑现", "未达成"] as const;
 const orgCurrentStateOptions = ["充分信赖", "信任支持", "基本满意", "不够满意", "严重不满"] as const;
 const orgChangesOptions = ["提升至充分信赖", "提升至信任支持", "下降至严重不满", "下降至不够满意", "无变化", "有非常正向的变化"] as const;
@@ -105,8 +99,8 @@ export function ThreadDetailEditForm({ thread }: Props) {
             >
               <option value="">请选择</option>
               {businessStageOptions.map((option) => (
-                <option key={option} value={option}>
-                  {option}
+                <option key={option.value} value={option.value}>
+                  {option.value}
                 </option>
               ))}
             </select>

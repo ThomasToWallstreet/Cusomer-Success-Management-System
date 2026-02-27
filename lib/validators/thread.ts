@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { businessStageValues } from "@/lib/constants/domain";
 
 export const createThreadSchema = z.object({
   role: z.string().optional(),
@@ -46,13 +47,7 @@ export const createThreadWorkflowSchema = z.object({
   keyScenarioDescription: z.string().min(1, "关键场景说明必填"),
   targetDimension: z.array(z.enum(["复购", "新业务突破", "续约"])).min(1, "目标维度必填"),
   targetDescription: z.string().min(1, "目标描述必填"),
-  businessStage: z.enum([
-    "1选择向正确客户销售",
-    "2测出效果优势并验证可落地性",
-    "3招投标到订单",
-    "4帮客户(关键人)快速兑现价值",
-    "5持续经营扩大业务合作范围",
-  ]),
+  businessStage: z.enum(businessStageValues),
   businessGoalAchieved: z.enum(["复购已下单", "复购机会已立项", "续费已达成", "突破业务价值已兑现", "未达成"]),
   orgCurrentState: z.enum(["充分信赖", "信任支持", "基本满意", "不够满意", "严重不满"]),
   orgChanges: z.enum(["提升至充分信赖", "提升至信任支持", "下降至严重不满", "下降至不够满意", "无变化", "有非常正向的变化"]),
@@ -97,7 +92,7 @@ export const updateThreadPlanSchema = z.object({
   keyScenarioDescription: z.string().min(1, "关键场景说明必填"),
   targetDimension: z.array(z.string()).min(1, "目标维度必填"),
   targetDescription: z.string().min(1, "目标描述必填"),
-  businessStage: z.string().min(1, "业务阶段必填"),
+  businessStage: z.enum(businessStageValues),
   businessGoalAchieved: z.string().min(1, "经营目标是否达成必填"),
   orgCurrentState: z.string().min(1, "整体组织关系现状必填"),
   orgChanges: z.string().min(1, "变化情况必填"),
@@ -105,4 +100,10 @@ export const updateThreadPlanSchema = z.object({
   personalNeeds: z.string().min(1, "关键人的个人需求必填"),
   smartGoal: z.string().min(1, "客户成功目标（SMART）必填"),
   alignedWithCustomer: z.string().min(1, "是否与客户完成对齐必填"),
+});
+
+export const deleteThreadSchema = z.object({
+  id: z.string().min(1, "客户成功计划ID缺失"),
+  role: z.string().optional(),
+  customerId: z.string().optional(),
 });

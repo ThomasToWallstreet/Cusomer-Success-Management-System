@@ -1,9 +1,13 @@
 import Link from "next/link";
 import { format } from "date-fns";
 import { zhCN } from "date-fns/locale";
+import { Trash2 } from "lucide-react";
 
+import { deleteThreadAction } from "@/app/(dashboard)/threads/actions";
+import { BusinessStageTrack, GoalProgressPanel, GoalTrendMini } from "@/components/thread/goal-progress-panel";
 import { StageStatusBadge } from "@/components/shared/stage-status-badge";
 import { Button } from "@/components/ui/button";
+import { getScenarioGoalProgress } from "@/lib/thread-goal-progress";
 
 type ScenarioItem = {
   id: string;
@@ -14,7 +18,9 @@ type ScenarioItem = {
   ownerName: string;
   stageStatus: "IN_PROGRESS" | "BLOCKED" | "DONE";
   updatedAt: Date;
+  goalSection?: unknown;
   orgSection?: unknown;
+  successSection?: unknown;
 };
 
 type CustomerGroup = {
@@ -22,6 +28,28 @@ type CustomerGroup = {
   customerName: string;
   updatedAt: Date;
   scenarios: ScenarioItem[];
+  goalProgress: {
+    revenueRate: number;
+    orgRate: number;
+    valueRate: number;
+    sampleSize: number;
+  };
+  stageProgress: {
+    activeStageOrder: number;
+    stages: Array<{ order: number; label: string; reached: boolean }>;
+  };
+  trend?: {
+    revenueDelta: number;
+    orgDelta: number;
+    valueDelta: number;
+    weeks: number;
+    points: Array<{
+      weekStart: Date;
+      revenueRate: number;
+      orgRate: number;
+      valueRate: number;
+    }>;
+  };
 };
 
 function extractKeyPeople(item: ScenarioItem) {
@@ -90,13 +118,44 @@ export function CustomerPlanList({
               </div>
             </div>
             <div className="space-y-2 p-3">
+              <div className="grid gap-2 lg:grid-cols-2">
+                <GoalProgressPanel
+                  compact
+                  items={[
+                    { label: "经营目标-扩大收入", ratio: group.goalProgress.revenueRate },
+                    { label: "客户成功-组织关系突破", ratio: group.goalProgress.orgRate },
+                    { label: "客户成功-价值兑现", ratio: group.goalProgress.valueRate },
+                  ]}
+                  sampleSize={group.goalProgress.sampleSize}
+                />
+                <BusinessStageTrack
+                  stages={group.stageProgress.stages}
+                  activeStageOrder={group.stageProgress.activeStageOrder}
+                />
+              </div>
+              {group.trend ? (
+                <GoalTrendMini title="近4周变化趋势" points={group.trend.points} />
+              ) : null}
               {group.scenarios.map((scenario) => {
                 const people = extractKeyPeople(scenario);
+                const scenarioProgress = getScenarioGoalProgress(scenario);
                 return (
                   <div key={scenario.id} className="rounded-md border bg-background px-3 py-2">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div className="text-sm font-medium">关键场景：{scenario.keyProjectScenario}</div>
-                      <StageStatusBadge stageStatus={scenario.stageStatus} />
+                      <div className="flex items-center gap-2">
+                        <StageStatusBadge stageStatus={scenario.stageStatus} />
+                        {role === "supervisor" ? (
+                          <form action={deleteThreadAction}>
+                            <input type="hidden" name="id" value={scenario.id} />
+                            <input type="hidden" name="role" value={role} />
+                            <input type="hidden" name="customerId" value={group.customerId || ""} />
+                            <Button type="submit" variant="ghost" size="icon" aria-label="删除客户成功计划">
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </form>
+                        ) : null}
+                      </div>
                     </div>
                     <div className="mt-2 flex flex-wrap gap-2">
                       {people.map((person) => (
@@ -105,6 +164,9 @@ export function CustomerPlanList({
                         </span>
                       ))}
                       <span className="rounded-full border bg-muted/40 px-2 py-0.5 text-xs">负责人：{scenario.ownerName}</span>
+                      <span className="rounded-full border bg-muted/40 px-2 py-0.5 text-xs">
+                        三目标完成：{scenarioProgress.doneCount}/{scenarioProgress.totalCount}
+                      </span>
                     </div>
                   </div>
                 );

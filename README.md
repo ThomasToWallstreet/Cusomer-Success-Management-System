@@ -102,6 +102,75 @@ docker compose run --rm migrate
 docker compose logs -f web
 ```
 
+## 迁移归零后首启（一次性）
+
+当需要将历史迁移彻底归零并重建为单基线时，按以下步骤执行：
+
+```bash
+# 1) 备份并清空迁移目录（示例：PowerShell）
+$ts = Get-Date -Format "yyyyMMdd_HHmmss"
+$backupDir = "prisma/migrations_backup_$ts"
+New-Item -ItemType Directory -Path $backupDir | Out-Null
+Copy-Item -Recurse -Force "prisma/migrations/*" $backupDir
+Remove-Item -Recurse -Force "prisma/migrations/*"
+
+# 2) 卷级清空数据库并仅启动 DB
+docker compose down -v
+docker compose up -d db
+
+# 3) 生成单基线迁移（本地连接 DB）
+$env:DATABASE_URL="postgresql://postgres:postgres@localhost:5432/ka_csm?schema=public"
+npx prisma migrate dev --name baseline_init --create-only
+
+# 4) 重新构建 migrate 镜像并落库
+docker compose build --no-cache migrate
+docker compose run --rm migrate
+
+# 5) 初始化与恢复业务数据
+npm run prisma:seed
+npm run import:customer-list -- "原型文档/深圳区 的副本.utf8.csv"
+
+# 6) 启动应用
+docker compose up -d web
+```
+
+验证建议：
+
+```bash
+# 迁移记录应仅有 baseline
+docker compose exec db psql -U postgres -d ka_csm -c 'SELECT migration_name FROM "_prisma_migrations" ORDER BY migration_name;'
+```
+
+## 日常数据库迁移 SOP（严格执行）
+
+### 开发环境（本地）
+
+```bash
+# 修改 schema 后，只能用 migrate dev 产出新迁移
+npx prisma migrate dev --name <feature_name>
+npx prisma generate
+npm run lint
+```
+
+### 提交规范
+
+- 必须一并提交：`prisma/schema.prisma` + 新增 `prisma/migrations/<timestamp>_<name>/migration.sql`
+- 禁止修改历史迁移文件
+- 禁止将 `prisma db push` 作为常规流程（仅限紧急救火且需评审确认）
+
+### 部署环境
+
+```bash
+# 仅允许 deploy，不允许 dev/reset
+npx prisma migrate deploy
+```
+
+禁止在部署环境执行：
+
+- `npx prisma migrate dev`
+- `npx prisma migrate reset`
+- `npx prisma db push`
+
 ## 数据模型
 
 - `Customer`：客户主表，是关键场景与周报的一级归属对象。
@@ -116,19 +185,9 @@ docker compose logs -f web
 
 ### 1) Prisma 迁移冲突
 
-- 开发环境可使用：
-  ```bash
-  npx prisma migrate reset
-  ```
-- 生产环境不要使用 reset，使用：
-  ```bash
-  npx prisma migrate deploy
-  ```
-- 历史数据升版后可执行：
-  ```bash
-  npm run backfill:customer-id
-  ```
-  命令会输出审计结果（例如跨客户关联的周报）。
+- 首选按“日常数据库迁移 SOP”执行，不要直接手动修补历史迁移链。
+- 若出现迁移链断裂（如顺序错误、缺失历史文件），请走“迁移归零后首启（一次性）”流程。
+- 生产环境仅允许 `prisma migrate deploy`，不要执行 reset/dev/push。
 
 ### 2) Windows 挂载导致 `node_modules` 异常
 

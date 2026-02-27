@@ -3,12 +3,20 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { createThread, getThreadDetail, updateThreadMeta, updateThreadOverview, updateThreadSection } from "@/lib/repos/thread-repo";
+import {
+  createThread,
+  deleteThread,
+  getThreadDetail,
+  updateThreadMeta,
+  updateThreadOverview,
+  updateThreadSection,
+} from "@/lib/repos/thread-repo";
 import { getCustomerById, getOrCreateCustomerByName } from "@/lib/repos/customer-repo";
 import { listCustomerIdsByManager } from "@/lib/repos/manager-assignment-repo";
 import {
   createThreadSchema,
   createThreadWorkflowSchema,
+  deleteThreadSchema,
   updateThreadMetaSchema,
   updateThreadPlanSchema,
   updateThreadSectionSchema,
@@ -318,4 +326,27 @@ export async function updateThreadPlanAction(formData: FormData) {
   } as never);
   revalidatePath(`/threads/${parsed.data.id}`);
   revalidatePath("/threads");
+}
+
+export async function deleteThreadAction(formData: FormData) {
+  const parsed = deleteThreadSchema.safeParse({
+    id: formData.get("id"),
+    role: formData.get("role"),
+    customerId: formData.get("customerId"),
+  });
+  if (!parsed.success) {
+    throw new Error(parsed.error.issues[0]?.message || "删除客户成功计划失败");
+  }
+
+  const role = parseViewerRole(parsed.data.role);
+  if (!isSupervisorRole(role)) {
+    throw new Error("仅大客户服务主管可删除客户成功计划");
+  }
+
+  await deleteThread(parsed.data.id);
+  revalidatePath("/threads");
+  revalidatePath("/dashboard");
+  if (parsed.data.customerId) {
+    revalidatePath(`/threads/customers/${parsed.data.customerId}`);
+  }
 }

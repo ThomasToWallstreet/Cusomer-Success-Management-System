@@ -87,11 +87,14 @@
 @layer theme {
   :root, :host {
     --color-amber-100: #fef3c6;
+    --color-amber-500: #f99c00;
     --color-amber-600: #dd7400;
     --color-amber-800: #953d00;
     --color-emerald-100: #d0fae5;
+    --color-emerald-500: #00bb7f;
     --color-emerald-600: #009767;
     --color-emerald-800: #005f46;
+    --color-sky-500: #00a5ef;
     --color-rose-100: #ffe4e6;
     --color-rose-600: #e70044;
     --color-rose-800: #a30037;
@@ -143,11 +146,14 @@
   @supports (color: lab(0% 0 0)) {
     :root, :host {
       --color-amber-100: lab(95.916% -1.21653 23.111);
+      --color-amber-500: lab(72.7183% 31.8672 97.9407);
       --color-amber-600: lab(60.3514% 40.5624 87.1228);
       --color-amber-800: lab(37.8822% 37.1699 52.2718);
       --color-emerald-100: lab(94.9004% -17.0769 5.63836);
+      --color-emerald-500: lab(66.9756% -58.27 19.5419);
       --color-emerald-600: lab(55.0481% -49.9246 15.93);
       --color-emerald-800: lab(35.3675% -33.1188 8.04002);
+      --color-sky-500: lab(63.3038% -18.433 -51.0407);
       --color-rose-100: lab(92.8221% 9.86832 2.60075);
       --color-rose-600: lab(49.1882% 81.577 36.0311);
       --color-rose-800: lab(34.6481% 60.802 20.1957);
@@ -621,6 +627,10 @@
     margin-right: calc(var(--spacing) * 2);
   }
 
+  .mb-2 {
+    margin-bottom: calc(var(--spacing) * 2);
+  }
+
   .mb-3 {
     margin-bottom: calc(var(--spacing) * 3);
   }
@@ -739,6 +749,10 @@
 
   .h-\(--cell-size\) {
     height: var(--cell-size);
+  }
+
+  .h-1\.5 {
+    height: calc(var(--spacing) * 1.5);
   }
 
   .h-2 {
@@ -1005,8 +1019,16 @@
     grid-auto-rows: min-content;
   }
 
+  .grid-cols-5 {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
   .grid-cols-\[112px_minmax\(0\,1fr\)\] {
     grid-template-columns: 112px minmax(0, 1fr);
+  }
+
+  .grid-cols-\[136px_minmax\(0\,1fr\)_40px\] {
+    grid-template-columns: 136px minmax(0, 1fr) 40px;
   }
 
   .grid-cols-\[160px_minmax\(0\,1fr\)\] {
@@ -1276,6 +1298,10 @@
     background-color: var(--color-amber-100);
   }
 
+  .bg-amber-500 {
+    background-color: var(--color-amber-500);
+  }
+
   .bg-background {
     background-color: var(--background);
   }
@@ -1324,6 +1350,10 @@
 
   .bg-emerald-100 {
     background-color: var(--color-emerald-100);
+  }
+
+  .bg-emerald-500 {
+    background-color: var(--color-emerald-500);
   }
 
   .bg-foreground {
@@ -1398,6 +1428,10 @@
 
   .bg-secondary {
     background-color: var(--secondary);
+  }
+
+  .bg-sky-500 {
+    background-color: var(--color-sky-500);
   }
 
   .bg-slate-100 {
@@ -1558,6 +1592,10 @@
 
   .text-left {
     text-align: left;
+  }
+
+  .text-right {
+    text-align: right;
   }
 
   .align-middle {

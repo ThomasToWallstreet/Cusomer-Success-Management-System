@@ -135,6 +135,12 @@ export async function createThread(data: Prisma.KeySuccessScenarioCreateInput) {
   return prisma.keySuccessScenario.create({ data });
 }
 
+export async function deleteThread(id: string) {
+  return prisma.keySuccessScenario.delete({
+    where: { id },
+  });
+}
+
 export async function getThreadDetail(id: string) {
   return prisma.keySuccessScenario.findUnique({
     where: { id },

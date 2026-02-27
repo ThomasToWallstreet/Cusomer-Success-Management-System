@@ -37,6 +37,7 @@ model Customer {
   updatedAt        DateTime             @updatedAt
   scenarios        KeySuccessScenario[]
   weeklyReports    WeeklyReport[]
+  goalSnapshots    CustomerGoalWeeklySnapshot[]
   assignments      ManagerCustomerAssignment[]
   customerListItem CustomerListEntry?
 }
@@ -148,4 +149,21 @@ model CustomerListEntry {
   @@index([industry])
   @@index([customerType])
   @@index([customerStage])
+}
+
+model CustomerGoalWeeklySnapshot {
+  id            String   @id @default(cuid())
+  customerId    String
+  weekStart     DateTime
+  revenueRate   Float
+  orgRate       Float
+  valueRate     Float
+  scenarioCount Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  customer      Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@unique([customerId, weekStart])
+  @@index([weekStart])
+  @@index([customerId, weekStart])
 }

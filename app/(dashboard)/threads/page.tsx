@@ -3,10 +3,15 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { CustomerPlanList } from "@/components/thread/customer-plan-list";
 import {
+  ensureCustomerGoalWeeklySnapshot,
+  listLatestGoalSnapshotTrendByCustomerIds,
+} from "@/lib/repos/customer-goal-weekly-snapshot-repo";
+import {
   countThreadsUpdatedInLastDays,
   listDistinctCustomers,
   listThreads,
 } from "@/lib/repos/thread-repo";
+import { getBusinessStageProgress, getCustomerGoalProgressSummary } from "@/lib/thread-goal-progress";
 import { resolveCurrentManager, listCustomerIdsByManager } from "@/lib/repos/manager-assignment-repo";
 import { isSupervisorRole, parseViewerRole } from "@/lib/viewer-role";
 
@@ -77,8 +82,21 @@ export default async function ThreadsPage({
       return acc;
     }, {}),
   ).sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
+  await Promise.all(
+    grouped
+      .filter((group) => Boolean(group.customerId))
+      .map((group) => ensureCustomerGoalWeeklySnapshot(group.customerId as string, group.scenarios)),
+  );
+  const customerIds = grouped.map((group) => group.customerId).filter((id): id is string => Boolean(id));
+  const trendMap = await listLatestGoalSnapshotTrendByCustomerIds(customerIds, 4);
+  const groupedWithProgress = grouped.map((group) => ({
+    ...group,
+    goalProgress: getCustomerGoalProgressSummary(group.scenarios),
+    stageProgress: getBusinessStageProgress(group.scenarios),
+    trend: group.customerId ? trendMap[group.customerId] : undefined,
+  }));
   const summary = {
-    customerCount: grouped.length,
+    customerCount: groupedWithProgress.length,
     scenarioCount: rows.length,
     highRiskCount: rows.filter((row) => row.riskLevel === "RED").length,
     inProgressCount: rows.filter((row) => row.stageStatus === "IN_PROGRESS").length,
@@ -161,7 +179,7 @@ export default async function ThreadsPage({
           <p className="mt-1 text-2xl font-semibold">{summary.updated7dCount}</p>
         </div>
       </div>
-      <CustomerPlanList groups={grouped} managerName={managerName} role={role} />
+      <CustomerPlanList groups={groupedWithProgress} managerName={managerName} role={role} />
     </div>
   );
 }

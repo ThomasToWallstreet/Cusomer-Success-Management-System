@@ -4,12 +4,21 @@ import { format } from "date-fns";
 import { zhCN } from "date-fns/locale";
 
 import { QualitativeStatusBadge } from "@/components/shared/qualitative-status-badge";
+import { GoalProgressPanel } from "@/components/thread/goal-progress-panel";
 import { RiskBadge } from "@/components/shared/risk-badge";
 import { StageStatusBadge } from "@/components/shared/stage-status-badge";
 import { Button } from "@/components/ui/button";
+import { ensureCustomerGoalWeeklySnapshot } from "@/lib/repos/customer-goal-weekly-snapshot-repo";
 import { getCustomerById } from "@/lib/repos/customer-repo";
 import { listCustomerIdsByManager, resolveCurrentManager } from "@/lib/repos/manager-assignment-repo";
 import { listThreads } from "@/lib/repos/thread-repo";
+import {
+  getAlignedTone,
+  getBusinessGoalTone,
+  getCustomerGoalProgressSummary,
+  getOrgCurrentTone,
+  getScenarioGoalProgress,
+} from "@/lib/thread-goal-progress";
 import { isSupervisorRole, parseViewerRole } from "@/lib/viewer-role";
 
 export const dynamic = "force-dynamic";
@@ -33,30 +42,6 @@ function formatBooleanOrText(value: unknown, trueLabel = "是", falseLabel = "�
 
 function toText(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
-}
-
-function getBusinessGoalTone(value: string): "GREEN" | "YELLOW" | "RED" | "NEUTRAL" {
-  if (!value || value === "-") return "NEUTRAL";
-  if (["复购已下单", "续费已达成", "突破业务价值已兑现"].includes(value)) return "GREEN";
-  if (value === "复购机会已立项") return "YELLOW";
-  if (value === "未达成") return "RED";
-  return "NEUTRAL";
-}
-
-function getOrgCurrentTone(value: string): "GREEN" | "YELLOW" | "RED" | "NEUTRAL" {
-  if (!value || value === "-") return "NEUTRAL";
-  if (["充分信赖", "信任支持"].includes(value)) return "GREEN";
-  if (value === "基本满意") return "YELLOW";
-  if (["不够满意", "严重不满"].includes(value)) return "RED";
-  return "NEUTRAL";
-}
-
-function getAlignedTone(value: string): "GREEN" | "YELLOW" | "RED" | "NEUTRAL" {
-  if (!value || value === "-") return "NEUTRAL";
-  if (value === "是-充分对齐") return "GREEN";
-  if (value === "是-部分对齐") return "YELLOW";
-  if (value === "否-未对齐") return "RED";
-  return "NEUTRAL";
 }
 
 function DetailRow({ label, value }: { label: string; value: string }) {
@@ -117,8 +102,10 @@ export default async function CustomerPlanDetailPage({
     notFound();
   }
 
+  await ensureCustomerGoalWeeklySnapshot(customerId, scenarios);
   const selectedScenarioId = getOne(query.scenarioId) || scenarios[0].id;
   const selected = scenarios.find((item) => item.id === selectedScenarioId) || scenarios[0];
+  const customerGoalSummary = getCustomerGoalProgressSummary(scenarios);
 
   const currentQuery = {
     ...(managerName ? { managerName } : {}),
@@ -131,7 +118,7 @@ export default async function CustomerPlanDetailPage({
   const basic = toRecord(selected.activitySection);
   const stakeholders = Array.isArray(org.stakeholders) ? (org.stakeholders as Array<Record<string, unknown>>) : [];
   const selectedBusinessGoalAchieved = toText(goal.businessGoalAchieved) || "-";
-  const selectedOrgCurrentState = toText(org.orgCurrentState) || "-";
+  const selectedOrgChanges = toText(org.orgChanges) || "-";
   const selectedAlignedWithCustomer = formatBooleanOrText(success.alignedWithCustomer);
 
   return (
@@ -174,12 +161,10 @@ export default async function CustomerPlanDetailPage({
                 ...currentQuery,
               }).toString();
               const active = scenario.id === selected.id;
-              const scenarioGoal = toRecord(scenario.goalSection);
-              const scenarioOrg = toRecord(scenario.orgSection);
-              const scenarioSuccess = toRecord(scenario.successSection);
-              const businessGoalAchieved = toText(scenarioGoal.businessGoalAchieved) || "-";
-              const orgCurrentState = toText(scenarioOrg.orgCurrentState) || "-";
-              const alignedWithCustomer = formatBooleanOrText(scenarioSuccess.alignedWithCustomer);
+              const scenarioProgress = getScenarioGoalProgress(scenario);
+              const businessGoalAchieved = scenarioProgress.businessGoalAchieved;
+              const orgChanges = scenarioProgress.orgChanges;
+              const alignedWithCustomer = scenarioProgress.alignedWithCustomer;
               return (
                 <Link
                   key={scenario.id}
@@ -206,14 +191,20 @@ export default async function CustomerPlanDetailPage({
                     />
                     <QualitativeStatusBadge
                       label="客户成功-组织关系"
-                      value={orgCurrentState}
-                      tone={getOrgCurrentTone(orgCurrentState)}
+                      value={orgChanges}
+                      tone={getOrgCurrentTone(orgChanges)}
                     />
                     <QualitativeStatusBadge
                       label="客户成功-价值兑现"
                       value={alignedWithCustomer}
                       tone={getAlignedTone(alignedWithCustomer)}
                     />
+                    <span className="inline-flex items-center rounded-full border bg-muted/40 px-2 py-0.5 text-xs text-muted-foreground">
+                      三目标完成：{scenarioProgress.doneCount}/{scenarioProgress.totalCount}
+                    </span>
+                  </div>
+                  <div className="mt-2 h-1.5 rounded bg-muted">
+                    <div className="h-1.5 rounded bg-primary" style={{ width: `${scenarioProgress.doneRatio * 100}%` }} />
                   </div>
                 </Link>
               );
@@ -233,6 +224,15 @@ export default async function CustomerPlanDetailPage({
           </div>
 
           <div className="space-y-4">
+            <GoalProgressPanel
+              title="客户维度三目标汇总完成率"
+              items={[
+                { label: "经营目标-扩大收入", ratio: customerGoalSummary.revenueRate },
+                { label: "客户成功-组织关系突破", ratio: customerGoalSummary.orgRate },
+                { label: "客户成功-价值兑现", ratio: customerGoalSummary.valueRate },
+              ]}
+              sampleSize={customerGoalSummary.sampleSize}
+            />
             <section className="rounded-md border p-3">
               <h4 className="mb-3 text-sm font-semibold">基本信息</h4>
               <div className="space-y-2">
@@ -259,9 +259,9 @@ export default async function CustomerPlanDetailPage({
               <div className="space-y-2">
                 <DetailRow label="变化情况" value={String(org.orgChanges || "-")} />
                 <DetailBadgeRow
-                  label="整体组织关系现状"
-                  value={selectedOrgCurrentState}
-                  tone={getOrgCurrentTone(selectedOrgCurrentState)}
+                  label="变化情况"
+                  value={selectedOrgChanges}
+                  tone={getOrgCurrentTone(selectedOrgChanges)}
                 />
               </div>
               <div className="mt-3 space-y-2">

@@ -69,3 +69,16 @@ export const satisfactionRiskLevelOptions = [
   { value: "MEDIUM_YELLOW", label: "中风险（黄色）" },
   { value: "LOW_GREEN", label: "低风险（绿色）" },
 ] as const;
+
+export const businessStageOptions = [
+  { value: "1选择向正确客户销售", label: "选择向正确客户销售", order: 1 },
+  { value: "2测出效果优势并验证可落地性", label: "测出效果优势并验证可落地性", order: 2 },
+  { value: "3招投标到订单", label: "招投标到订单", order: 3 },
+  { value: "4帮客户(关键人)快速兑现价值", label: "帮客户(关键人)快速兑现价值", order: 4 },
+  { value: "5持续经营扩大业务合作范围", label: "持续经营扩大业务合作范围", order: 5 },
+] as const;
+
+export const businessStageValues = businessStageOptions.map((item) => item.value) as [
+  (typeof businessStageOptions)[number]["value"],
+  ...(typeof businessStageOptions)[number]["value"][],
+];

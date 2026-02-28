@@ -5,7 +5,6 @@ import { ArrowLeft } from "lucide-react";
 import { ThreadDetailEditForm } from "@/components/thread/thread-detail-edit-form";
 import { ThreadDetailReadonly } from "@/components/thread/thread-detail-readonly";
 import { ExecutionWorkbench } from "@/components/thread/execution-workbench";
-import { ThreadHeaderSticky } from "@/components/thread/thread-header-sticky";
 import { ThreadStepper } from "@/components/thread/thread-stepper";
 import { Button } from "@/components/ui/button";
 import { WeeklyReportTimeline } from "@/components/weekly-report/weekly-report-timeline";
@@ -47,7 +46,6 @@ export default async function ThreadDetailPage({
           返回客户成功计划
         </Link>
       </Button>
-      <ThreadHeaderSticky thread={thread} />
       <ThreadStepper
         id={thread.id}
         stage={thread.stage}

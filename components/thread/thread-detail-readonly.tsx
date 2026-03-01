@@ -69,7 +69,7 @@ export function ThreadDetailReadonly({ thread }: Props) {
       </section>
 
       <section className="space-y-2 rounded-md border p-3">
-        <h3 className="text-sm font-semibold">客户成功目标-组织关系突破</h3>
+        <h3 className="text-sm font-semibold">客户成功-组织关系</h3>
         <ReadonlyRow label="整体组织关系现状" value={toText(org.orgCurrentState)} />
         <ReadonlyRow label="变化情况" value={toText(org.orgChanges)} />
         <div className="space-y-2 pt-1">
@@ -99,7 +99,7 @@ export function ThreadDetailReadonly({ thread }: Props) {
       </section>
 
       <section className="space-y-2 rounded-md border p-3">
-        <h3 className="text-sm font-semibold">客户成功目标-需求理解</h3>
+        <h3 className="text-sm font-semibold">客户成功-价值兑现</h3>
         <ReadonlyRow label="客户业务需求分析" value={toText(success.businessNeedAnalysis)} />
         <ReadonlyRow label="关键人的个人需求" value={toText(success.personalNeeds)} />
         <ReadonlyRow label="客户成功目标（SMART）" value={toText(success.smartGoal)} />

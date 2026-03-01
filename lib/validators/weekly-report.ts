@@ -35,3 +35,18 @@ export const createWeeklyReportSchema = z
     message: "周开始日期不能晚于周结束日期",
     path: ["weekStart"],
   });
+
+export const generateWeeklyReportFromExecutionSchema = z
+  .object({
+    role: z.string().optional(),
+    managerName: z.string().optional(),
+    customerId: z.string().min(1, "客户必填"),
+    ownerName: z.string().min(1, "ownerName 必填"),
+    weekStart: z.coerce.date(),
+    weekEnd: z.coerce.date(),
+    threadIds: z.array(z.string()).min(1, "请至少选择 1 个关键场景"),
+  })
+  .refine((data) => data.weekStart <= data.weekEnd, {
+    message: "周开始日期不能晚于周结束日期",
+    path: ["weekStart"],
+  });

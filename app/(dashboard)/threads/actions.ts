@@ -257,6 +257,26 @@ export async function updateThreadSectionAction(formData: FormData) {
 
   await updateThreadSection(parsed.data.id, parsed.data.section, payload as never);
   revalidatePath(`/threads/${parsed.data.id}`);
+  revalidatePath("/threads");
+
+  const submitAction = String(formData.get("submitAction") || "").trim();
+  const redirectTo = String(formData.get("redirectTo") || "").trim();
+  const goalKey = String(formData.get("goalKey") || "").trim();
+  if (submitAction) {
+    if (redirectTo) {
+      try {
+        const url = new URL(redirectTo.startsWith("http") ? redirectTo : redirectTo, "http://localhost");
+        url.searchParams.set("saved", "1");
+        url.searchParams.set("savedAction", submitAction);
+        if (goalKey) url.searchParams.set("savedGoalKey", goalKey);
+        redirect(`${url.pathname}?${url.searchParams.toString()}`);
+      } catch {
+        redirect(`/threads/${parsed.data.id}?tab=execution&mode=view&saved=1&savedAction=${submitAction}${goalKey ? `&savedGoalKey=${encodeURIComponent(goalKey)}` : ""}`);
+      }
+    } else {
+      redirect(`/threads/${parsed.data.id}?tab=execution&mode=view&saved=1&savedAction=${submitAction}${goalKey ? `&savedGoalKey=${encodeURIComponent(goalKey)}` : ""}`);
+    }
+  }
 }
 
 export async function updateThreadPlanAction(formData: FormData) {

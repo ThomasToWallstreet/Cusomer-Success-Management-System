@@ -7,6 +7,7 @@ import { deleteThreadAction } from "@/app/(dashboard)/threads/actions";
 import { GoalProgressPanel, GoalTrendMini } from "@/components/thread/goal-progress-panel";
 import { StageStatusBadge } from "@/components/shared/stage-status-badge";
 import { Button } from "@/components/ui/button";
+import { buildThreadExecutionSummary } from "@/lib/execution-progress";
 import { getScenarioBusinessStageLabel, getScenarioGoalProgress } from "@/lib/thread-goal-progress";
 
 type ScenarioItem = {
@@ -18,6 +19,8 @@ type ScenarioItem = {
   ownerName: string;
   stageStatus: "IN_PROGRESS" | "BLOCKED" | "DONE";
   updatedAt: Date;
+  customer: string;
+  executionSection?: unknown;
   goalSection?: unknown;
   orgSection?: unknown;
   successSection?: unknown;
@@ -83,6 +86,22 @@ export function CustomerPlanList({
   return (
     <div className="space-y-3">
       {groups.map((group) => {
+        const executionSummaries = group.scenarios.map((scenario) =>
+          buildThreadExecutionSummary({
+            threadId: scenario.id,
+            customerName: group.customerName,
+            scenarioName: scenario.keyProjectScenario,
+            ownerName: scenario.ownerName,
+            executionSection: scenario.executionSection,
+          }),
+        );
+        const executionTotal = executionSummaries.reduce((count, item) => count + item.totalCount, 0);
+        const executionDoneTotal = executionSummaries.reduce((count, item) => count + item.doneCount, 0);
+        const executionLastCloseAt =
+          executionSummaries
+            .map((item) => item.lastClosedAt)
+            .filter(Boolean)
+            .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())[0] || "";
         const keyPeopleCount = group.scenarios.reduce((count, scenario) => {
           return count + extractKeyPeople(scenario).length;
         }, 0);
@@ -120,7 +139,7 @@ export function CustomerPlanList({
                     compact
                     items={[
                       { label: "经营目标-扩大收入", ratio: group.goalProgress.revenueRate },
-                      { label: "客户成功-组织关系突破", ratio: group.goalProgress.orgRate },
+                      { label: "客户成功-组织关系", ratio: group.goalProgress.orgRate },
                       { label: "客户成功-价值兑现", ratio: group.goalProgress.valueRate },
                     ]}
                     sampleSize={group.goalProgress.sampleSize}
@@ -136,10 +155,30 @@ export function CustomerPlanList({
                   )}
                 </div>
               </div>
+              <section className="rounded-md border bg-muted/20 p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h4 className="text-sm font-semibold">执行内容卡片</h4>
+                  <span className="text-xs text-muted-foreground">
+                    有记录场景：{executionSummaries.filter((item) => item.hasRecord).length}/{group.scenarios.length}
+                  </span>
+                </div>
+                <div className="mt-2 flex flex-wrap gap-4 text-sm text-muted-foreground">
+                  <span>执行事项总数：{executionTotal}</span>
+                  <span>已完成事项：{executionDoneTotal}</span>
+                  <span>最近闭环时间：{executionLastCloseAt ? format(new Date(executionLastCloseAt), "yyyy-MM-dd", { locale: zhCN }) : "-"}</span>
+                </div>
+              </section>
               {group.scenarios.map((scenario) => {
                 const people = extractKeyPeople(scenario);
                 const scenarioProgress = getScenarioGoalProgress(scenario);
                 const scenarioBusinessStageLabel = getScenarioBusinessStageLabel(scenario);
+                const executionSummary = buildThreadExecutionSummary({
+                  threadId: scenario.id,
+                  customerName: group.customerName,
+                  scenarioName: scenario.keyProjectScenario,
+                  ownerName: scenario.ownerName,
+                  executionSection: scenario.executionSection,
+                });
                 return (
                   <div key={scenario.id} className="rounded-md border bg-background p-3">
                     <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_320px]">
@@ -169,6 +208,9 @@ export function CustomerPlanList({
                           <span className="rounded-full border bg-muted/40 px-2 py-0.5 text-xs">负责人：{scenario.ownerName}</span>
                           <span className="rounded-full border bg-muted/40 px-2 py-0.5 text-xs">
                             三目标完成：{scenarioProgress.doneCount}/{scenarioProgress.totalCount}
+                          </span>
+                          <span className="rounded-full border bg-muted/40 px-2 py-0.5 text-xs">
+                            执行事项：{executionSummary.totalCount}（已完成 {executionSummary.doneCount}）
                           </span>
                         </div>
                       </div>

@@ -45,8 +45,8 @@ type FlowStepKey = Exclude<ModuleKey, "context-info">;
 
 const flowSteps: Array<{ key: FlowStepKey; label: string }> = [
   { key: "business-goal", label: "经营目标-扩大收入" },
-  { key: "org-breakthrough", label: "客户成功目标-组织关系突破" },
-  { key: "needs-understanding", label: "客户成功目标-需求理解" },
+  { key: "org-breakthrough", label: "客户成功-组织关系" },
+  { key: "needs-understanding", label: "客户成功-价值兑现" },
 ];
 
 const productLineOptions = [
@@ -409,7 +409,7 @@ export function ThreadCreateWorkflowForm({
               sectionRefs.current["org-breakthrough"] = element;
             }}
           >
-            <h3 className="font-semibold">2、客户成功目标-组织关系突破</h3>
+            <h3 className="font-semibold">2、客户成功-组织关系</h3>
             <div className="grid gap-3 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="orgCurrentState">整体组织关系现状 *</Label>
@@ -567,7 +567,7 @@ export function ThreadCreateWorkflowForm({
               sectionRefs.current["needs-understanding"] = element;
             }}
           >
-            <h3 className="font-semibold">3、客户成功目标-需求理解</h3>
+            <h3 className="font-semibold">3、客户成功-价值兑现</h3>
             <div className="space-y-2">
               <Label htmlFor="businessNeedAnalysis">客户业务需求分析（业务流/数据流） *</Label>
               <Textarea id="businessNeedAnalysis" name="businessNeedAnalysis" rows={3} required />

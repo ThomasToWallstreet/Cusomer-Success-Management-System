@@ -107,6 +107,7 @@ export async function listThreadsByCustomer(customerId?: string, ownerName?: str
       keyProjectScenario: true,
       riskLevel: true,
       stageStatus: true,
+      executionSection: true,
     },
   });
 }
@@ -127,6 +128,7 @@ export async function listThreadsByCustomerIds(customerIds: string[], ownerName?
       keyProjectScenario: true,
       riskLevel: true,
       stageStatus: true,
+      executionSection: true,
     },
   });
 }

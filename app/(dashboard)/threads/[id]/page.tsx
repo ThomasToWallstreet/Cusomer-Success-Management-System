@@ -7,7 +7,7 @@ import { ThreadDetailReadonly } from "@/components/thread/thread-detail-readonly
 import { ExecutionWorkbench } from "@/components/thread/execution-workbench";
 import { ThreadStepper } from "@/components/thread/thread-stepper";
 import { Button } from "@/components/ui/button";
-import { WeeklyReportTimeline } from "@/components/weekly-report/weekly-report-timeline";
+import { WeeklyGenerator } from "@/components/weekly-report/weekly-generator";
 import { getThreadDetail } from "@/lib/repos/thread-repo";
 
 export const dynamic = "force-dynamic";
@@ -64,7 +64,7 @@ export default async function ThreadDetailPage({
               <Link href={tabLink("execution")}>执行推进</Link>
             </Button>
             <Button variant={tab === "weekly" ? "default" : "outline"} size="sm" asChild>
-              <Link href={tabLink("weekly")}>周报历史</Link>
+              <Link href={tabLink("weekly")}>周报生成</Link>
             </Button>
           </div>
           {tab === "plan" ? (
@@ -113,18 +113,19 @@ export default async function ThreadDetailPage({
           <ExecutionWorkbench
             threadId={thread.id}
             executionSection={thread.executionSection}
+            showSavedDialog={getOne(query.saved) === "1"}
           />
         ) : null}
 
         {tab === "weekly" ? (
-          <WeeklyReportTimeline
-            items={thread.weeklyReportLinks.map((item) => ({
-              id: item.weeklyReport.id,
-              ownerName: item.weeklyReport.ownerName,
-              weekStart: item.weeklyReport.weekStart,
-              weekEnd: item.weeklyReport.weekEnd,
-              summary: item.weeklyReport.summary,
-            }))}
+          <WeeklyGenerator
+            threadId={thread.id}
+            defaultCustomerId={thread.customerId}
+            defaultOwnerName={thread.ownerName}
+            managerName={getOne(query.managerName)}
+            role={getOne(query.role)}
+            selectedCustomerId={getOne(query.weeklyCustomerId)}
+            selectedOwnerName={getOne(query.weeklyOwnerName)}
           />
         ) : null}
       </section>

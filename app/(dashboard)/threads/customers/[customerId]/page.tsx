@@ -8,6 +8,7 @@ import { GoalProgressPanel } from "@/components/thread/goal-progress-panel";
 import { RiskBadge } from "@/components/shared/risk-badge";
 import { StageStatusBadge } from "@/components/shared/stage-status-badge";
 import { Button } from "@/components/ui/button";
+import { buildThreadExecutionSummary } from "@/lib/execution-progress";
 import { ensureCustomerGoalWeeklySnapshot } from "@/lib/repos/customer-goal-weekly-snapshot-repo";
 import { getCustomerById } from "@/lib/repos/customer-repo";
 import { listCustomerIdsByManager, resolveCurrentManager } from "@/lib/repos/manager-assignment-repo";
@@ -120,6 +121,13 @@ export default async function CustomerPlanDetailPage({
   const selectedBusinessGoalAchieved = toText(goal.businessGoalAchieved) || "-";
   const selectedOrgChanges = toText(org.orgChanges) || "-";
   const selectedAlignedWithCustomer = formatBooleanOrText(success.alignedWithCustomer);
+  const executionSummary = buildThreadExecutionSummary({
+    threadId: selected.id,
+    customerName: customer.name,
+    scenarioName: selected.keyProjectScenario,
+    ownerName: selected.ownerName,
+    executionSection: selected.executionSection,
+  });
 
   return (
     <div className="space-y-4">
@@ -151,8 +159,8 @@ export default async function CustomerPlanDetailPage({
         </div>
       </div>
 
-      <div className="grid gap-3 lg:grid-cols-[70%_30%] xl:gap-4">
-        <section className="rounded-lg border bg-card p-3">
+      <div className="grid gap-3 lg:grid-cols-[72%_28%] xl:gap-4">
+        <section className="rounded-lg border bg-card p-3 lg:order-2">
           <h3 className="mb-3 font-semibold">当前客户关键场景（共 {scenarios.length} 个）</h3>
           <div className="space-y-2">
             {scenarios.map((scenario) => {
@@ -172,13 +180,13 @@ export default async function CustomerPlanDetailPage({
                   className={`block rounded-md border p-3 transition-colors ${active ? "border-primary bg-muted/30" : "hover:bg-muted/20"}`}
                 >
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="font-medium">关键场景：{scenario.keyProjectScenario}</div>
+                    <div className="text-sm font-semibold">关键场景：{scenario.keyProjectScenario}</div>
                     <div className="flex items-center gap-2">
                       <StageStatusBadge stageStatus={scenario.stageStatus} />
                       <RiskBadge riskLevel={scenario.riskLevel} />
                     </div>
                   </div>
-                  <div className="mt-2 flex flex-wrap gap-4 text-sm text-muted-foreground">
+                  <div className="mt-2 flex flex-wrap gap-4 text-xs text-muted-foreground">
                     <span>负责人：{scenario.ownerName}</span>
                     <span>关键人：{scenario.keyPerson}</span>
                     <span>更新：{format(scenario.updatedAt, "yyyy-MM-dd", { locale: zhCN })}</span>
@@ -199,9 +207,6 @@ export default async function CustomerPlanDetailPage({
                       value={alignedWithCustomer}
                       tone={getAlignedTone(alignedWithCustomer)}
                     />
-                    <span className="inline-flex items-center rounded-full border bg-muted/40 px-2 py-0.5 text-xs text-muted-foreground">
-                      三目标完成：{scenarioProgress.doneCount}/{scenarioProgress.totalCount}
-                    </span>
                   </div>
                 </Link>
               );
@@ -209,7 +214,7 @@ export default async function CustomerPlanDetailPage({
           </div>
         </section>
 
-        <aside className="rounded-lg border bg-card p-4">
+        <aside className="rounded-lg border bg-card p-4 lg:order-1">
           <div className="mb-4 flex items-center justify-between">
             <div>
               <h3 className="text-base font-semibold">关键场景详情面板</h3>
@@ -220,12 +225,12 @@ export default async function CustomerPlanDetailPage({
             </Button>
           </div>
 
-          <div className="space-y-4">
+          <div className="flex flex-col gap-4">
             <GoalProgressPanel
               title="客户维度三目标汇总完成率"
               items={[
                 { label: "经营目标-扩大收入", ratio: customerGoalSummary.revenueRate },
-                { label: "客户成功-组织关系突破", ratio: customerGoalSummary.orgRate },
+                { label: "客户成功-组织关系", ratio: customerGoalSummary.orgRate },
                 { label: "客户成功-价值兑现", ratio: customerGoalSummary.valueRate },
               ]}
               sampleSize={customerGoalSummary.sampleSize}
@@ -254,7 +259,7 @@ export default async function CustomerPlanDetailPage({
             <section className="rounded-md border p-3">
               <h4 className="mb-3 text-sm font-semibold">客户成功-组织关系</h4>
               <div className="space-y-2">
-                <DetailRow label="变化情况" value={String(org.orgChanges || "-")} />
+                <DetailRow label="满意度现状" value={String(org.orgCurrentState || "-")} />
                 <DetailBadgeRow
                   label="变化情况"
                   value={selectedOrgChanges}
@@ -275,6 +280,19 @@ export default async function CustomerPlanDetailPage({
                 ) : (
                   <div className="text-muted-foreground">暂无关键人条目</div>
                 )}
+              </div>
+            </section>
+            <section className="order-last rounded-md border p-3">
+              <h4 className="mb-3 text-sm font-semibold">关键活动执行</h4>
+              <div className="space-y-2">
+                <DetailRow label="是否有执行记录" value={executionSummary.hasRecord ? "是" : "否"} />
+                <DetailRow label="执行事项总数" value={`${executionSummary.totalCount}`} />
+                <DetailRow label="已完成事项" value={`${executionSummary.doneCount}`} />
+                <DetailRow label="最近闭环时间" value={executionSummary.lastClosedAt || "-"} />
+                <DetailRow
+                  label="最近事项"
+                  value={executionSummary.items.slice(0, 3).map((item) => `${item.itemTitle}（${item.status}）`).join("；") || "-"}
+                />
               </div>
             </section>
             <section className="rounded-md border p-3">

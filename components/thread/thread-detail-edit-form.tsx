@@ -126,7 +126,7 @@ export function ThreadDetailEditForm({ thread }: Props) {
       </section>
 
       <section className="space-y-3 rounded-md border p-3">
-        <h3 className="text-sm font-semibold">客户成功目标-组织关系突破</h3>
+        <h3 className="text-sm font-semibold">客户成功-组织关系</h3>
         <div className="grid gap-3 md:grid-cols-2">
           <div className="space-y-2">
             <Label htmlFor="orgCurrentState">整体组织关系现状 *</Label>
@@ -166,7 +166,7 @@ export function ThreadDetailEditForm({ thread }: Props) {
       </section>
 
       <section className="space-y-3 rounded-md border p-3">
-        <h3 className="text-sm font-semibold">客户成功目标-需求理解</h3>
+        <h3 className="text-sm font-semibold">客户成功-价值兑现</h3>
         <div className="space-y-2">
           <Label htmlFor="businessNeedAnalysis">客户业务需求分析 *</Label>
           <Textarea

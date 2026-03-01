@@ -1,6 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useFormStatus } from "react-dom";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { Check, Loader2, Pencil, Trash2 } from "lucide-react";
 
 import { updateThreadSectionAction } from "@/app/(dashboard)/threads/actions";
 import { Button } from "@/components/ui/button";
@@ -47,8 +50,8 @@ type GoalPlan = {
 
 const GOAL_OPTIONS = [
   { key: "BUSINESS_GROWTH", label: "经营目标-扩大收入" },
-  { key: "ORG_BREAKTHROUGH", label: "客户成功目标-组织关系突破" },
-  { key: "VALUE_REALIZATION", label: "客户成功目标-需求理解" },
+  { key: "ORG_BREAKTHROUGH", label: "客户成功-组织关系" },
+  { key: "VALUE_REALIZATION", label: "客户成功-价值兑现" },
 ] as const;
 
 const HQ_ACTIVITY_OPTIONS = [
@@ -83,7 +86,16 @@ function formatClarifiedAt(value: string) {
   if (!value) return "自动记录";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleString("zh-CN", { hour12: false });
+  return new Intl.DateTimeFormat("zh-CN", {
+    hour12: false,
+    timeZone: "Asia/Shanghai",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  }).format(date);
 }
 
 function emptyRegionalActivity(prefix: string): RegionalActivity {
@@ -202,17 +214,81 @@ function normalizeGoals(execution: Record<string, unknown>): GoalPlan[] {
   });
 }
 
+function hasRegionalContent(activity: RegionalActivity) {
+  return Boolean(
+    activity.title ||
+      activity.planStart ||
+      activity.deadline ||
+      activity.monitorAt ||
+      activity.note ||
+      activity.expectedCloseAt ||
+      activity.clarifiedAt ||
+      activity.status !== "TODO",
+  );
+}
+
+function getSubmittedHeadquarters(goal: GoalPlan) {
+  return goal.headquartersActivities.filter((item) => item.selected);
+}
+
+function getSubmittedRegional(goal: GoalPlan) {
+  return goal.regionalActivities.filter((item) => hasRegionalContent(item));
+}
+
+function ExecutionSaveButton({ savedAction }: { savedAction: string | null }) {
+  const { pending } = useFormStatus();
+  const isSaved = savedAction === "save_execution";
+  return (
+    <Button
+      type="submit"
+      className="h-8 cursor-pointer text-sm leading-snug"
+      name="submitAction"
+      value="save_execution"
+      disabled={pending || isSaved}
+    >
+      {pending ? (
+        <>
+          <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+          保存中…
+        </>
+      ) : isSaved ? (
+        <>
+          <Check className="mr-1.5 h-4 w-4" />
+          已保存
+        </>
+      ) : (
+        "保存"
+      )}
+    </Button>
+  );
+}
+
 export function ExecutionWorkbench({
   threadId,
   executionSection,
+  showSavedDialog = false,
 }: {
   threadId: string;
   executionSection: unknown;
+  showSavedDialog?: boolean;
 }) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const execution = toRecord(executionSection);
   const initialGoals = normalizeGoals(execution);
   const [goals, setGoals] = useState<GoalPlan[]>(initialGoals);
-  const [expandedGoalKey, setExpandedGoalKey] = useState<string>(initialGoals[0]?.goalKey || GOAL_OPTIONS[0].key);
+  const [expandedGoalKey, setExpandedGoalKey] = useState<string>("");
+  const [expandedSectionType, setExpandedSectionType] = useState<"headquarters" | "regional" | null>(null);
+  const [expandedHeadquartersGoalKey, setExpandedHeadquartersGoalKey] = useState<string>("");
+  const [expandedHeadquartersActivityId, setExpandedHeadquartersActivityId] = useState<Record<string, string | null>>({}); // activityKey or "new"
+  const [newHeadquartersDraft, setNewHeadquartersDraft] = useState<
+    Record<string, { activityKey: string; planStart: string; status: ActivityStatus; note: string } | null>
+  >({});
+  const [expandedRegionalActivityId, setExpandedRegionalActivityId] = useState<Record<string, string | null>>({});
+  const savedAction = searchParams.get("savedAction") || "";
+  const savedGoalKey = searchParams.get("savedGoalKey") || "";
+  void showSavedDialog;
 
   const updateGoal = (goalKey: string, updater: (goal: GoalPlan) => GoalPlan) => {
     setGoals((prev) => prev.map((goal) => (goal.goalKey === goalKey ? updater(goal) : goal)));
@@ -222,262 +298,745 @@ export function ExecutionWorkbench({
     ...execution,
     goals,
   });
+  const redirectTo = useMemo(() => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("tab", "execution");
+    params.set("mode", "view");
+    return `${pathname}?${params.toString()}`;
+  }, [pathname, searchParams]);
+
+  useEffect(() => {
+    if (!savedAction) return;
+    const timer = window.setTimeout(() => {
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete("saved");
+      params.delete("savedAction");
+      params.delete("savedGoalKey");
+      const next = params.toString();
+      router.replace(next ? `${pathname}?${next}` : pathname);
+    }, 1500);
+    return () => window.clearTimeout(timer);
+  }, [pathname, router, savedAction, searchParams]);
 
   return (
     <form action={updateThreadSectionAction} className="space-y-3">
-      <input type="hidden" name="id" value={threadId} />
-      <input type="hidden" name="section" value="executionSection" />
-      <input type="hidden" name="sectionJson" value={serializedSectionJson} />
+        <input type="hidden" name="id" value={threadId} />
+        <input type="hidden" name="section" value="executionSection" />
+        <input type="hidden" name="sectionJson" value={serializedSectionJson} />
+        <input type="hidden" name="redirectTo" value={redirectTo} />
 
-      {goals.map((goal) => {
-        const expanded = expandedGoalKey === goal.goalKey;
-        return (
-          <Card key={goal.goalKey}>
-            <CardHeader className="py-3">
-              <button
-                type="button"
-                onClick={() => setExpandedGoalKey((prev) => (prev === goal.goalKey ? "" : goal.goalKey))}
-                className="flex w-full cursor-pointer items-center justify-between text-left"
-              >
-                <CardTitle className="text-base">{goal.goalLabel}</CardTitle>
-                <span className="text-xs text-muted-foreground">
-                  总部活动 {goal.headquartersActivities.filter((item) => item.selected).length}/5 · 区域 {goal.regionalActivities.length}
-                </span>
-              </button>
-            </CardHeader>
+        {goals.map((goal) => {
+          const expanded = expandedGoalKey === goal.goalKey;
+          const submittedHeadquarters = getSubmittedHeadquarters(goal);
+          const submittedRegional = getSubmittedRegional(goal);
+          return (
+            <Card key={goal.goalKey} className="gap-3 py-2.5">
+              <CardHeader className="py-2 px-4">
+                <div className="flex w-full items-center justify-between gap-2">
+                  <CardTitle className="text-sm font-semibold leading-snug">{goal.goalLabel}</CardTitle>
+                  <div className="flex flex-col items-end text-xs leading-snug text-muted-foreground">
+                    <span>总部定义关键活动：已提交 {submittedHeadquarters.length} 条</span>
+                    <span>区域日常工作：已提交 {submittedRegional.length} 条</span>
+                  </div>
+                </div>
+              </CardHeader>
 
-            {expanded ? (
-              <CardContent className="space-y-4">
-                <section className="space-y-2 rounded-md border p-3">
-                  <h4 className="text-sm font-semibold">总部定义关键活动</h4>
-                  <div className="space-y-3">
-                    {goal.headquartersActivities.map((activity) => (
-                      <div key={activity.activityKey} className="rounded-md border bg-muted/10 p-3">
-                        <label className="flex cursor-pointer items-center gap-2 text-sm font-medium">
-                          <input
-                            type="checkbox"
-                            checked={activity.selected}
-                            onChange={(event) => {
-                              const nextSelected = event.target.checked;
+              {expanded ? (
+                <CardContent className="space-y-3 pt-0 px-4 pb-4">
+                  {expandedSectionType === "headquarters" ? (
+                  <section className="space-y-2 rounded-md border p-2.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <h4 className="text-sm font-semibold leading-snug">总部定义关键活动</h4>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="h-8 cursor-pointer text-sm leading-snug"
+                        disabled={
+                          goal.headquartersActivities.filter((a) => a.selected).length >= HQ_ACTIVITY_OPTIONS.length
+                        }
+                        onClick={() => {
+                          const available = HQ_ACTIVITY_OPTIONS.filter(
+                            (opt) => !goal.headquartersActivities.some((a) => a.activityKey === opt.key && a.selected),
+                          );
+                          if (available.length === 0) return;
+                          setExpandedHeadquartersActivityId((prev) => ({ ...prev, [goal.goalKey]: "new" }));
+                          setNewHeadquartersDraft((prev) => ({
+                            ...prev,
+                            [goal.goalKey]: {
+                              activityKey: available[0].key,
+                              planStart: "",
+                              status: "TODO",
+                              note: "",
+                            },
+                          }));
+                        }}
+                      >
+                        新增
+                      </Button>
+                    </div>
+
+                    {expandedHeadquartersActivityId[goal.goalKey] === "new" ? (
+                      <div className="rounded-md border bg-muted/10 p-2.5">
+                        <div className="grid gap-1.5 md:grid-cols-3">
+                          <div className="space-y-0.5 md:col-span-2">
+                            <p className="text-xs leading-snug text-muted-foreground">关键活动</p>
+                            <select
+                              className="h-8 w-full rounded-md border bg-background px-2.5 text-sm leading-snug"
+                              value={newHeadquartersDraft[goal.goalKey]?.activityKey ?? ""}
+                              onChange={(event) => {
+                                const key = event.target.value;
+                                setNewHeadquartersDraft((prev) => {
+                                  const cur = prev[goal.goalKey];
+                                  return { ...prev, [goal.goalKey]: cur ? { ...cur, activityKey: key } : { activityKey: key, planStart: "", status: "TODO" as ActivityStatus, note: "" } };
+                                });
+                              }}
+                            >
+                              {HQ_ACTIVITY_OPTIONS.filter((opt) =>
+                                !goal.headquartersActivities.some((a) => a.activityKey === opt.key && a.selected),
+                              ).map((opt) => (
+                                <option key={opt.key} value={opt.key}>
+                                  {opt.label}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="space-y-0.5">
+                            <p className="text-xs leading-snug text-muted-foreground">关键活动明确时间</p>
+                            <div className="flex h-8 items-center rounded-md border bg-muted px-2.5 text-sm leading-snug text-muted-foreground">
+                              {formatClarifiedAt(nowTimestampIso())}
+                            </div>
+                          </div>
+                          <div className="space-y-0.5">
+                            <p className="text-xs leading-snug text-muted-foreground">预计开展时间</p>
+                            <input
+                              className="h-8 w-full rounded-md border bg-background px-2.5 text-sm leading-snug"
+                              type="date"
+                              aria-label="预计开展时间"
+                              value={newHeadquartersDraft[goal.goalKey]?.planStart ?? ""}
+                              onChange={(event) =>
+                                setNewHeadquartersDraft((prev) => {
+                                  const cur = prev[goal.goalKey];
+                                  return { ...prev, [goal.goalKey]: cur ? { ...cur, planStart: event.target.value } : { activityKey: "", planStart: event.target.value, status: "TODO", note: "" } };
+                                })
+                              }
+                            />
+                          </div>
+                          <div className="space-y-0.5">
+                            <p className="text-xs leading-snug text-muted-foreground">状态</p>
+                            <select
+                              className="h-8 w-full rounded-md border bg-background px-2.5 text-sm leading-snug"
+                              value={newHeadquartersDraft[goal.goalKey]?.status ?? "TODO"}
+                              onChange={(event) =>
+                                setNewHeadquartersDraft((prev) => {
+                                  const cur = prev[goal.goalKey];
+                                  return { ...prev, [goal.goalKey]: cur ? { ...cur, status: safeStatus(event.target.value) } : { activityKey: "", planStart: "", status: safeStatus(event.target.value), note: "" } };
+                                })
+                              }
+                            >
+                              {STATUS_OPTIONS.map((item) => (
+                                <option key={item.value} value={item.value}>
+                                  {item.label}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <Textarea
+                            rows={2}
+                            className="text-sm leading-snug md:col-span-2"
+                            placeholder="活动计划说明"
+                            value={newHeadquartersDraft[goal.goalKey]?.note ?? ""}
+                            onChange={(event) =>
+                              setNewHeadquartersDraft((prev) => {
+                                const cur = prev[goal.goalKey];
+                                return { ...prev, [goal.goalKey]: cur ? { ...cur, note: event.target.value } : { activityKey: "", planStart: "", status: "TODO", note: event.target.value } };
+                              })
+                            }
+                          />
+                        </div>
+                        <div className="mt-1.5 flex justify-end">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="default"
+                            className="h-8 cursor-pointer text-sm leading-snug"
+                            onClick={() => {
+                              const draft = newHeadquartersDraft[goal.goalKey];
+                              if (!draft?.activityKey) return;
                               updateGoal(goal.goalKey, (targetGoal) => ({
                                 ...targetGoal,
                                 headquartersActivities: targetGoal.headquartersActivities.map((item) =>
-                                  item.activityKey === activity.activityKey
+                                  item.activityKey === draft.activityKey
                                     ? {
                                         ...item,
-                                        selected: nextSelected,
-                                        clarifiedAt: nextSelected ? item.clarifiedAt || nowTimestampIso() : item.clarifiedAt,
+                                        selected: true,
+                                        clarifiedAt: item.clarifiedAt || nowTimestampIso(),
+                                        planStart: draft.planStart,
+                                        status: draft.status,
+                                        note: draft.note,
                                       }
                                     : item,
                                 ),
                               }));
+                              setNewHeadquartersDraft((prev) => ({ ...prev, [goal.goalKey]: null }));
+                              setExpandedHeadquartersActivityId((prev) => ({ ...prev, [goal.goalKey]: null }));
                             }}
-                          />
-                          {activity.title}
-                        </label>
-
-                        {activity.selected ? (
-                          <div className="mt-2 grid gap-2 md:grid-cols-3">
-                            <div className="space-y-1">
-                              <p className="h-4 text-xs leading-4 text-muted-foreground">关键活动明确时间</p>
-                              <div className="flex h-9 items-center rounded-md border bg-muted px-3 text-sm text-muted-foreground">
-                                {formatClarifiedAt(activity.clarifiedAt)}
-                              </div>
-                            </div>
-                            <div className="space-y-1">
-                              <p className="h-4 text-xs leading-4 text-muted-foreground">预计开展时间</p>
-                              <input
-                                className="h-9 w-full rounded-md border bg-background px-3 text-sm"
-                                type="date"
-                                aria-label="预计开展时间"
-                                value={activity.planStart}
-                                onChange={(event) => {
-                                  updateGoal(goal.goalKey, (targetGoal) => ({
-                                    ...targetGoal,
-                                    headquartersActivities: targetGoal.headquartersActivities.map((item) =>
-                                      item.activityKey === activity.activityKey ? { ...item, planStart: event.target.value } : item,
-                                    ),
-                                  }));
-                                }}
-                              />
-                            </div>
-                            <div className="space-y-1">
-                              <p className="h-4 text-xs leading-4 text-muted-foreground">状态</p>
-                              <select
-                                className="h-9 w-full rounded-md border bg-background px-3 text-sm"
-                                value={activity.status}
-                                onChange={(event) => {
-                                  updateGoal(goal.goalKey, (targetGoal) => ({
-                                    ...targetGoal,
-                                    headquartersActivities: targetGoal.headquartersActivities.map((item) =>
-                                      item.activityKey === activity.activityKey
-                                        ? { ...item, status: safeStatus(event.target.value) }
-                                        : item,
-                                    ),
-                                  }));
-                                }}
-                              >
-                                {STATUS_OPTIONS.map((item) => (
-                                  <option key={item.value} value={item.value}>
-                                    {item.label}
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
-                            <Textarea
-                              rows={2}
-                              className="md:col-span-3"
-                              placeholder="活动计划说明"
-                              value={activity.note}
-                              onChange={(event) => {
-                                updateGoal(goal.goalKey, (targetGoal) => ({
-                                  ...targetGoal,
-                                  headquartersActivities: targetGoal.headquartersActivities.map((item) =>
-                                    item.activityKey === activity.activityKey ? { ...item, note: event.target.value } : item,
-                                  ),
-                                }));
-                              }}
-                            />
-                          </div>
-                        ) : null}
-                      </div>
-                    ))}
-                  </div>
-                </section>
-
-                <section className="space-y-2 rounded-md border p-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <h4 className="text-sm font-semibold">区域日常工作</h4>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      className="cursor-pointer"
-                      onClick={() => {
-                        updateGoal(goal.goalKey, (targetGoal) => ({
-                          ...targetGoal,
-                          regionalActivities: [
-                            ...targetGoal.regionalActivities,
-                            {
-                              ...emptyRegionalActivity(`${goal.goalKey}-regional`),
-                              clarifiedAt: nowTimestampIso(),
-                            },
-                          ],
-                        }));
-                      }}
-                    >
-                      新增条目
-                    </Button>
-                  </div>
-
-                  {goal.regionalActivities.length ? (
-                    <div className="space-y-3">
-                      {goal.regionalActivities.map((activity) => (
-                        <div key={activity.id} className="rounded-md border bg-muted/10 p-3">
-                          <div className="grid gap-2 md:grid-cols-3">
-                            <input
-                              className="h-9 rounded-md border bg-background px-3 text-sm md:col-span-2"
-                              placeholder="关键活动标题"
-                              value={activity.title}
-                              onChange={(event) => {
-                                updateGoal(goal.goalKey, (targetGoal) => ({
-                                  ...targetGoal,
-                                  regionalActivities: targetGoal.regionalActivities.map((item) =>
-                                    item.id === activity.id ? { ...item, title: event.target.value } : item,
-                                  ),
-                                }));
-                              }}
-                            />
-                            <div className="space-y-1">
-                              <p className="h-4 text-xs leading-4 text-muted-foreground">关键活动明确时间</p>
-                              <div className="flex h-9 items-center rounded-md border bg-muted px-3 text-sm text-muted-foreground">
-                                {formatClarifiedAt(activity.clarifiedAt)}
-                              </div>
-                            </div>
-                            <div className="space-y-1">
-                              <p className="h-4 text-xs leading-4 text-muted-foreground">预计开展时间</p>
-                              <input
-                                className="h-9 w-full rounded-md border bg-background px-3 text-sm"
-                                type="date"
-                                aria-label="预计开展时间"
-                                value={activity.planStart}
-                                onChange={(event) => {
-                                  updateGoal(goal.goalKey, (targetGoal) => ({
-                                    ...targetGoal,
-                                    regionalActivities: targetGoal.regionalActivities.map((item) =>
-                                      item.id === activity.id ? { ...item, planStart: event.target.value } : item,
-                                    ),
-                                  }));
-                                }}
-                              />
-                            </div>
-                            <div className="space-y-1">
-                              <p className="h-4 text-xs leading-4 text-muted-foreground">状态</p>
-                              <select
-                                className="h-9 w-full rounded-md border bg-background px-3 text-sm"
-                                value={activity.status}
-                                onChange={(event) => {
-                                  updateGoal(goal.goalKey, (targetGoal) => ({
-                                    ...targetGoal,
-                                    regionalActivities: targetGoal.regionalActivities.map((item) =>
-                                      item.id === activity.id ? { ...item, status: safeStatus(event.target.value) } : item,
-                                    ),
-                                  }));
-                                }}
-                              >
-                                {STATUS_OPTIONS.map((item) => (
-                                  <option key={item.value} value={item.value}>
-                                    {item.label}
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
-                            <Textarea
-                              rows={2}
-                              className="md:col-span-2"
-                              placeholder="活动计划说明"
-                              value={activity.note}
-                              onChange={(event) => {
-                                updateGoal(goal.goalKey, (targetGoal) => ({
-                                  ...targetGoal,
-                                  regionalActivities: targetGoal.regionalActivities.map((item) =>
-                                    item.id === activity.id ? { ...item, note: event.target.value } : item,
-                                  ),
-                                }));
-                              }}
-                            />
-                            <Button
-                              type="button"
-                              variant="outline"
-                              className="cursor-pointer"
-                              onClick={() => {
-                                updateGoal(goal.goalKey, (targetGoal) => ({
-                                  ...targetGoal,
-                                  regionalActivities: targetGoal.regionalActivities.filter((item) => item.id !== activity.id),
-                                }));
-                              }}
-                            >
-                              删除条目
-                            </Button>
-                          </div>
+                          >
+                            确认
+                          </Button>
                         </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-xs text-muted-foreground">暂无区域日常工作，请点击“新增条目”。</p>
-                  )}
-                </section>
-              </CardContent>
-            ) : null}
-          </Card>
-        );
-      })}
+                      </div>
+                    ) : null}
 
-      <div className="flex justify-end">
-        <Button type="submit" className="cursor-pointer">
-          保存执行推进
-        </Button>
-      </div>
-    </form>
+                    {goal.headquartersActivities.filter((a) => a.selected).length ? (
+                      <div className="space-y-2">
+                        {goal.headquartersActivities
+                          .filter((a) => a.selected)
+                          .map((activity) => {
+                            const isExpanded = expandedHeadquartersActivityId[goal.goalKey] === activity.activityKey;
+                            return (
+                              <div key={activity.activityKey} className="rounded-md border bg-muted/10 p-2.5">
+                                {isExpanded ? (
+                                  <>
+                                    <div className="grid gap-1.5 md:grid-cols-3">
+                                      <div className="space-y-0.5 md:col-span-2">
+                                        <p className="text-xs leading-snug text-muted-foreground">关键活动</p>
+                                        <div className="flex h-8 items-center rounded-md border bg-muted px-2.5 text-sm leading-snug">
+                                          {activity.title}
+                                        </div>
+                                      </div>
+                                      <div className="space-y-0.5">
+                                        <p className="text-xs leading-snug text-muted-foreground">关键活动明确时间</p>
+                                        <div className="flex h-8 items-center rounded-md border bg-muted px-2.5 text-sm leading-snug text-muted-foreground">
+                                          {formatClarifiedAt(activity.clarifiedAt)}
+                                        </div>
+                                      </div>
+                                      <div className="space-y-0.5">
+                                        <p className="text-xs leading-snug text-muted-foreground">预计开展时间</p>
+                                        <input
+                                          className="h-8 w-full rounded-md border bg-background px-2.5 text-sm leading-snug"
+                                          type="date"
+                                          aria-label="预计开展时间"
+                                          value={activity.planStart}
+                                          onChange={(event) => {
+                                            updateGoal(goal.goalKey, (targetGoal) => ({
+                                              ...targetGoal,
+                                              headquartersActivities: targetGoal.headquartersActivities.map((item) =>
+                                                item.activityKey === activity.activityKey ? { ...item, planStart: event.target.value } : item,
+                                              ),
+                                            }));
+                                          }}
+                                        />
+                                      </div>
+                                      <div className="space-y-0.5">
+                                        <p className="text-xs leading-snug text-muted-foreground">状态</p>
+                                        <select
+                                          className="h-8 w-full rounded-md border bg-background px-2.5 text-sm leading-snug"
+                                          value={activity.status}
+                                          onChange={(event) => {
+                                            updateGoal(goal.goalKey, (targetGoal) => ({
+                                              ...targetGoal,
+                                              headquartersActivities: targetGoal.headquartersActivities.map((item) =>
+                                                item.activityKey === activity.activityKey
+                                                  ? { ...item, status: safeStatus(event.target.value) }
+                                                  : item,
+                                              ),
+                                            }));
+                                          }}
+                                        >
+                                          {STATUS_OPTIONS.map((item) => (
+                                            <option key={item.value} value={item.value}>
+                                              {item.label}
+                                            </option>
+                                          ))}
+                                        </select>
+                                      </div>
+                                      <Textarea
+                                        rows={2}
+                                        className="text-sm leading-snug md:col-span-2"
+                                        placeholder="活动计划说明"
+                                        value={activity.note}
+                                        onChange={(event) => {
+                                          updateGoal(goal.goalKey, (targetGoal) => ({
+                                            ...targetGoal,
+                                            headquartersActivities: targetGoal.headquartersActivities.map((item) =>
+                                              item.activityKey === activity.activityKey ? { ...item, note: event.target.value } : item,
+                                            ),
+                                          }));
+                                        }}
+                                      />
+                                      <Button
+                                        type="button"
+                                        size="icon"
+                                        variant="ghost"
+                                        className="h-7 w-7 shrink-0"
+                                        aria-label={`删除${activity.title}`}
+                                        onClick={() => {
+                                          updateGoal(goal.goalKey, (targetGoal) => ({
+                                            ...targetGoal,
+                                            headquartersActivities: targetGoal.headquartersActivities.map((item) =>
+                                              item.activityKey === activity.activityKey ? { ...item, selected: false } : item,
+                                            ),
+                                          }));
+                                          setExpandedHeadquartersActivityId((prev) =>
+                                            prev[goal.goalKey] === activity.activityKey ? { ...prev, [goal.goalKey]: null } : prev,
+                                          );
+                                        }}
+                                      >
+                                        <Trash2 className="h-4 w-4 text-destructive" />
+                                      </Button>
+                                    </div>
+                                    <div className="mt-1.5 flex justify-end">
+                                      <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="default"
+                                        className="h-8 cursor-pointer text-sm leading-snug"
+                                        onClick={() =>
+                                          setExpandedHeadquartersActivityId((prev) => ({ ...prev, [goal.goalKey]: null }))
+                                        }
+                                      >
+                                        确认
+                                      </Button>
+                                    </div>
+                                  </>
+                                ) : (
+                                  <div className="flex items-center justify-between gap-2">
+                                    <div className="min-w-0 flex-1">
+                                      <p className="text-sm font-medium leading-snug">{activity.title}</p>
+                                      <p className="text-xs leading-snug text-muted-foreground">
+                                        状态：{STATUS_OPTIONS.find((s) => s.value === activity.status)?.label || "待执行"} ·
+                                        预计开展：{activity.planStart || "-"}
+                                      </p>
+                                    </div>
+                                    <div className="flex shrink-0 items-center gap-1">
+                                      <Button
+                                        type="button"
+                                        size="icon"
+                                        variant="ghost"
+                                        className="h-7 w-7"
+                                        aria-label={`编辑${activity.title}`}
+                                        onClick={() =>
+                                          setExpandedHeadquartersActivityId((prev) => ({ ...prev, [goal.goalKey]: activity.activityKey }))
+                                        }
+                                      >
+                                        <Pencil className="h-4 w-4" />
+                                      </Button>
+                                      <Button
+                                        type="button"
+                                        size="icon"
+                                        variant="ghost"
+                                        className="h-7 w-7"
+                                        aria-label={`删除总部关键活动${activity.title}`}
+                                        onClick={() => {
+                                          updateGoal(goal.goalKey, (targetGoal) => ({
+                                            ...targetGoal,
+                                            headquartersActivities: targetGoal.headquartersActivities.map((item) =>
+                                              item.activityKey === activity.activityKey ? { ...item, selected: false } : item,
+                                            ),
+                                          }));
+                                          setExpandedHeadquartersActivityId((prev) =>
+                                            prev[goal.goalKey] === activity.activityKey ? { ...prev, [goal.goalKey]: null } : prev,
+                                          );
+                                        }}
+                                      >
+                                        <Trash2 className="h-4 w-4 text-destructive" />
+                                      </Button>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                      </div>
+                    ) : expandedHeadquartersActivityId[goal.goalKey] !== "new" ? (
+                      <p className="text-xs leading-snug text-muted-foreground">暂无总部关键活动，请点击右侧「新增」。</p>
+                    ) : null}
+                    <div className="flex justify-end pt-0.5">
+                      <span className="inline-flex rounded-md border bg-muted/30 px-2.5 py-1">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-auto cursor-pointer p-0 text-xs leading-snug text-muted-foreground hover:bg-transparent"
+                          onClick={() => setExpandedSectionType(null)}
+                        >
+                          返回
+                        </Button>
+                      </span>
+                    </div>
+                  </section>
+                  ) : (
+                  <section className="rounded-md border p-2.5">
+                    <div className="mb-1 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <h4 className="text-sm font-semibold leading-snug">总部定义关键活动</h4>
+                        <span className="text-xs leading-snug text-muted-foreground">{submittedHeadquarters.length} 项</span>
+                      </div>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="h-7 px-2 text-xs leading-snug"
+                        onClick={() => {
+                          setExpandedSectionType("headquarters");
+                          setExpandedHeadquartersGoalKey(goal.goalKey);
+                        }}
+                      >
+                        编辑
+                      </Button>
+                    </div>
+                    {submittedHeadquarters.length ? (
+                      <div className="space-y-2">
+                        {submittedHeadquarters.map((item) => (
+                          <div key={item.activityKey} className="rounded-md border bg-muted/20 p-2 text-sm leading-snug">
+                            <p className="font-medium leading-snug">{item.title}</p>
+                            <p className="text-xs leading-snug text-muted-foreground">
+                              状态：{STATUS_OPTIONS.find((s) => s.value === item.status)?.label || "待执行"} ·
+                              预计开展：{item.planStart || "-"}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs leading-snug text-muted-foreground">暂无已提交关键活动。</p>
+                    )}
+                  </section>
+                  )}
+
+                  {expandedSectionType === "regional" ? (
+                  <section className="space-y-2 rounded-md border p-2.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <h4 className="text-sm font-semibold leading-snug">区域日常工作</h4>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="h-8 cursor-pointer text-sm leading-snug"
+                        onClick={() => {
+                          const newActivity = {
+                            ...emptyRegionalActivity(`${goal.goalKey}-regional`),
+                            clarifiedAt: nowTimestampIso(),
+                          };
+                          updateGoal(goal.goalKey, (targetGoal) => ({
+                            ...targetGoal,
+                            regionalActivities: [...targetGoal.regionalActivities, newActivity],
+                          }));
+                          setExpandedRegionalActivityId((prev) => ({ ...prev, [goal.goalKey]: newActivity.id }));
+                        }}
+                      >
+                        新增
+                      </Button>
+                    </div>
+
+                    {goal.regionalActivities.length ? (
+                      <div className="space-y-2">
+                        {goal.regionalActivities.map((activity) => {
+                          const isExpanded = expandedRegionalActivityId[goal.goalKey] === activity.id;
+                          return (
+                            <div key={activity.id} className="rounded-md border bg-muted/10 p-2.5">
+                              {isExpanded ? (
+                                <>
+                                  <div className="grid gap-1.5 md:grid-cols-3">
+                                    <input
+                                      className="h-8 rounded-md border bg-background px-2.5 text-sm leading-snug md:col-span-2"
+                                      placeholder="关键活动标题"
+                                      value={activity.title}
+                                      onChange={(event) => {
+                                        updateGoal(goal.goalKey, (targetGoal) => ({
+                                          ...targetGoal,
+                                          regionalActivities: targetGoal.regionalActivities.map((item) =>
+                                            item.id === activity.id ? { ...item, title: event.target.value } : item,
+                                          ),
+                                        }));
+                                      }}
+                                    />
+                                    <div className="space-y-0.5">
+                                      <p className="text-xs leading-snug text-muted-foreground">关键活动明确时间</p>
+                                      <div className="flex h-8 items-center rounded-md border bg-muted px-2.5 text-sm leading-snug text-muted-foreground">
+                                        {formatClarifiedAt(activity.clarifiedAt)}
+                                      </div>
+                                    </div>
+                                    <div className="space-y-0.5">
+                                      <p className="text-xs leading-snug text-muted-foreground">预计开展时间</p>
+                                      <input
+                                        className="h-8 w-full rounded-md border bg-background px-2.5 text-sm leading-snug"
+                                        type="date"
+                                        aria-label="预计开展时间"
+                                        value={activity.planStart}
+                                        onChange={(event) => {
+                                          updateGoal(goal.goalKey, (targetGoal) => ({
+                                            ...targetGoal,
+                                            regionalActivities: targetGoal.regionalActivities.map((item) =>
+                                              item.id === activity.id ? { ...item, planStart: event.target.value } : item,
+                                            ),
+                                          }));
+                                        }}
+                                      />
+                                    </div>
+                                    <div className="space-y-0.5">
+                                      <p className="text-xs leading-snug text-muted-foreground">状态</p>
+                                      <select
+                                        className="h-8 w-full rounded-md border bg-background px-2.5 text-sm leading-snug"
+                                        value={activity.status}
+                                        onChange={(event) => {
+                                          updateGoal(goal.goalKey, (targetGoal) => ({
+                                            ...targetGoal,
+                                            regionalActivities: targetGoal.regionalActivities.map((item) =>
+                                              item.id === activity.id
+                                                ? { ...item, status: safeStatus(event.target.value) }
+                                                : item,
+                                            ),
+                                          }));
+                                        }}
+                                      >
+                                        {STATUS_OPTIONS.map((item) => (
+                                          <option key={item.value} value={item.value}>
+                                            {item.label}
+                                          </option>
+                                        ))}
+                                      </select>
+                                    </div>
+                                    <Textarea
+                                      rows={2}
+                                      className="text-sm leading-snug md:col-span-2"
+                                      placeholder="活动计划说明"
+                                      value={activity.note}
+                                      onChange={(event) => {
+                                        updateGoal(goal.goalKey, (targetGoal) => ({
+                                          ...targetGoal,
+                                          regionalActivities: targetGoal.regionalActivities.map((item) =>
+                                            item.id === activity.id ? { ...item, note: event.target.value } : item,
+                                          ),
+                                        }));
+                                      }}
+                                    />
+                                    <Button
+                                      type="button"
+                                      size="icon"
+                                      variant="ghost"
+                                      className="h-7 w-7 shrink-0"
+                                      aria-label={`删除区域日常工作${activity.title || "未命名区域活动"}`}
+                                      onClick={() => {
+                                        updateGoal(goal.goalKey, (targetGoal) => ({
+                                          ...targetGoal,
+                                          regionalActivities: targetGoal.regionalActivities.filter(
+                                            (item) => item.id !== activity.id,
+                                          ),
+                                        }));
+                                        setExpandedRegionalActivityId((prev) =>
+                                          prev[goal.goalKey] === activity.id ? { ...prev, [goal.goalKey]: null } : prev,
+                                        );
+                                      }}
+                                    >
+                                      <Trash2 className="h-4 w-4 text-destructive" />
+                                    </Button>
+                                  </div>
+                                  <div className="mt-1.5 flex justify-end">
+                                    <Button
+                                      type="button"
+                                      size="sm"
+                                      variant="default"
+                                      className="h-8 cursor-pointer text-sm leading-snug"
+                                      onClick={() =>
+                                        setExpandedRegionalActivityId((prev) => ({ ...prev, [goal.goalKey]: null }))
+                                      }
+                                    >
+                                      确认
+                                    </Button>
+                                  </div>
+                                </>
+                              ) : (
+                                <div className="flex items-center justify-between gap-2">
+                                  <div className="min-w-0 flex-1">
+                                    <p className="text-sm font-medium leading-snug">{activity.title || "未命名区域活动"}</p>
+                                    <p className="text-xs leading-snug text-muted-foreground">
+                                      状态：{STATUS_OPTIONS.find((s) => s.value === activity.status)?.label || "待执行"} ·
+                                      预计开展：{activity.planStart || "-"}
+                                    </p>
+                                  </div>
+                                  <div className="flex shrink-0 items-center gap-1">
+                                    <Button
+                                      type="button"
+                                      size="icon"
+                                      variant="ghost"
+                                      className="h-7 w-7"
+                                      aria-label={`编辑${activity.title || "未命名区域活动"}`}
+                                      onClick={() =>
+                                        setExpandedRegionalActivityId((prev) => ({ ...prev, [goal.goalKey]: activity.id }))
+                                      }
+                                    >
+                                      <Pencil className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                      type="button"
+                                      size="icon"
+                                      variant="ghost"
+                                      className="h-7 w-7"
+                                      aria-label={`删除区域日常工作${activity.title || "未命名区域活动"}`}
+                                      onClick={() => {
+                                        updateGoal(goal.goalKey, (targetGoal) => ({
+                                          ...targetGoal,
+                                          regionalActivities: targetGoal.regionalActivities.filter(
+                                            (item) => item.id !== activity.id,
+                                          ),
+                                        }));
+                                        setExpandedRegionalActivityId((prev) =>
+                                          prev[goal.goalKey] === activity.id ? { ...prev, [goal.goalKey]: null } : prev,
+                                        );
+                                      }}
+                                    >
+                                      <Trash2 className="h-4 w-4 text-destructive" />
+                                    </Button>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <p className="text-xs leading-snug text-muted-foreground">暂无区域日常工作，请点击右侧「新增」。</p>
+                    )}
+                    <div className="flex justify-end pt-0.5">
+                      <span className="inline-flex rounded-md border bg-muted/30 px-2.5 py-1">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-auto cursor-pointer p-0 text-xs leading-snug text-muted-foreground hover:bg-transparent"
+                          onClick={() => setExpandedSectionType(null)}
+                        >
+                          返回
+                        </Button>
+                      </span>
+                    </div>
+                  </section>
+                  ) : (
+                  <section className="rounded-md border p-2.5">
+                    <div className="mb-1 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <h4 className="text-sm font-semibold leading-snug">区域日常工作</h4>
+                        <span className="text-xs leading-snug text-muted-foreground">{submittedRegional.length} 项</span>
+                      </div>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="h-7 px-2 text-xs leading-snug"
+                        onClick={() => {
+                          setExpandedSectionType("regional");
+                          setExpandedHeadquartersGoalKey("");
+                        }}
+                      >
+                        编辑
+                      </Button>
+                    </div>
+                    {submittedRegional.length ? (
+                      <div className="space-y-2">
+                        {submittedRegional.map((item) => (
+                          <div key={item.id} className="rounded-md border bg-muted/20 p-2 text-sm leading-snug">
+                            <p className="font-medium leading-snug">{item.title || "未命名区域活动"}</p>
+                            <p className="text-xs leading-snug text-muted-foreground">
+                              状态：{STATUS_OPTIONS.find((s) => s.value === item.status)?.label || "待执行"} ·
+                              预计开展：{item.planStart || "-"}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs leading-snug text-muted-foreground">暂无已提交区域工作。</p>
+                    )}
+                  </section>
+                  )}
+                </CardContent>
+              ) : null}
+
+              {!expanded ? (
+                <CardContent className="space-y-3 pt-0 px-4 pb-4">
+                  <section className="rounded-md border p-2.5">
+                    <div className="mb-1 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <h4 className="text-sm font-semibold leading-snug">总部定义关键活动</h4>
+                        <span className="text-xs leading-snug text-muted-foreground">{submittedHeadquarters.length} 项</span>
+                      </div>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="h-7 px-2 text-xs leading-snug"
+                        onClick={() => {
+                          setExpandedGoalKey(goal.goalKey);
+                          setExpandedSectionType("headquarters");
+                          setExpandedHeadquartersGoalKey(goal.goalKey);
+                        }}
+                      >
+                        编辑
+                      </Button>
+                    </div>
+                    {submittedHeadquarters.length ? (
+                      <div className="space-y-2">
+                        {submittedHeadquarters.map((item) => (
+                          <div key={item.activityKey} className="rounded-md border bg-muted/20 p-2 text-sm leading-snug">
+                            <p className="font-medium leading-snug">{item.title}</p>
+                            <p className="text-xs leading-snug text-muted-foreground">
+                              状态：{STATUS_OPTIONS.find((status) => status.value === item.status)?.label || "待执行"} ·
+                              预计开展：{item.planStart || "-"}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs leading-snug text-muted-foreground">暂无已提交关键活动。</p>
+                    )}
+                  </section>
+
+                  <section className="rounded-md border p-2.5">
+                    <div className="mb-1 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <h4 className="text-sm font-semibold leading-snug">区域日常工作</h4>
+                        <span className="text-xs leading-snug text-muted-foreground">{submittedRegional.length} 项</span>
+                      </div>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="h-7 px-2 text-xs leading-snug"
+                        onClick={() => {
+                          setExpandedGoalKey(goal.goalKey);
+                          setExpandedSectionType("regional");
+                          setExpandedHeadquartersGoalKey("");
+                        }}
+                      >
+                        编辑
+                      </Button>
+                    </div>
+                    {submittedRegional.length ? (
+                      <div className="space-y-2">
+                        {submittedRegional.map((item) => (
+                          <div key={item.id} className="rounded-md border bg-muted/20 p-2 text-sm leading-snug">
+                            <p className="font-medium leading-snug">{item.title || "未命名区域活动"}</p>
+                            <p className="text-xs leading-snug text-muted-foreground">
+                              状态：{STATUS_OPTIONS.find((status) => status.value === item.status)?.label || "待执行"} ·
+                              预计开展：{item.planStart || "-"}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs leading-snug text-muted-foreground">暂无已提交区域工作。</p>
+                    )}
+                  </section>
+
+                </CardContent>
+              ) : null}
+            </Card>
+          );
+        })}
+
+        <div className="flex justify-end pt-1">
+          <ExecutionSaveButton savedAction={savedAction} />
+        </div>
+      </form>
   );
 }

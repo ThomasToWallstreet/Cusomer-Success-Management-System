@@ -24,7 +24,8 @@ type ActivityStatus = "TODO" | "IN_PROGRESS" | "DONE" | "BLOCKED";
 type RegionalActivity = {
   id: string;
   title: string;
-  owner: string;
+  clarifiedAt: string;
+  expectedCloseAt: string;
   planStart: string;
   deadline: string;
   monitorAt: string;
@@ -74,11 +75,23 @@ function makeActivityId(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
 }
 
+function nowTimestampIso() {
+  return new Date().toISOString();
+}
+
+function formatClarifiedAt(value: string) {
+  if (!value) return "自动记录";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString("zh-CN", { hour12: false });
+}
+
 function emptyRegionalActivity(prefix: string): RegionalActivity {
   return {
     id: makeActivityId(prefix),
     title: "",
-    owner: "",
+    clarifiedAt: "",
+    expectedCloseAt: "",
     planStart: "",
     deadline: "",
     monitorAt: "",
@@ -91,7 +104,8 @@ function toRegionalActivity(raw: Record<string, unknown>, fallbackId: string): R
   return {
     id: toText(raw.id) || fallbackId,
     title: toText(raw.title),
-    owner: toText(raw.owner),
+    clarifiedAt: toText(raw.clarifiedAt),
+    expectedCloseAt: toText(raw.expectedCloseAt),
     planStart: toText(raw.planStart),
     deadline: toText(raw.deadline),
     monitorAt: toText(raw.monitorAt),
@@ -120,9 +134,25 @@ function mapLegacyItemsToRegional(
       return linkedGoal === goalLabel;
     })
     .map((item, index) =>
-      toRegionalActivity(item, `${goalKey}-legacy-${index + 1}`),
+      {
+        const normalized = toRegionalActivity(item, `${goalKey}-legacy-${index + 1}`);
+        return {
+          ...normalized,
+          clarifiedAt: normalized.clarifiedAt || nowTimestampIso(),
+        };
+      },
     )
-    .filter((item) => item.title || item.owner || item.deadline || item.note);
+    .filter(
+      (item) =>
+        item.title ||
+        item.planStart ||
+        item.deadline ||
+        item.monitorAt ||
+        item.note ||
+        item.expectedCloseAt ||
+        item.clarifiedAt ||
+        item.status !== "TODO",
+    );
 }
 
 function buildDefaultGoals(execution: Record<string, unknown>): GoalPlan[] {
@@ -145,17 +175,23 @@ function normalizeGoals(execution: Record<string, unknown>): GoalPlan[] {
     const headquartersActivities = HQ_ACTIVITY_OPTIONS.map((option, idx) => {
       const raw = rawHeadquarters.find((item) => toText(item.activityKey) === option.key) || rawHeadquarters[idx] || {};
       const base = toRegionalActivity(raw, `${goal.key}-${option.key}-${idx + 1}`);
+      const selected = Boolean(raw.selected);
       return {
         ...base,
+        clarifiedAt: selected ? base.clarifiedAt || nowTimestampIso() : base.clarifiedAt,
         title: toText(raw.title) || option.label,
         activityKey: option.key,
-        selected: Boolean(raw.selected),
+        selected,
       };
     });
 
-    const regionalActivities = toArray(matched.regionalActivities).map((item, idx) =>
-      toRegionalActivity(item, `${goal.key}-regional-${idx + 1}`),
-    );
+    const regionalActivities = toArray(matched.regionalActivities).map((item, idx) => {
+      const normalized = toRegionalActivity(item, `${goal.key}-regional-${idx + 1}`);
+      return {
+        ...normalized,
+        clarifiedAt: normalized.clarifiedAt || nowTimestampIso(),
+      };
+    });
 
     return {
       goalKey: goal.key,
@@ -168,11 +204,9 @@ function normalizeGoals(execution: Record<string, unknown>): GoalPlan[] {
 
 export function ExecutionWorkbench({
   threadId,
-  activitySection: _activitySection,
   executionSection,
 }: {
   threadId: string;
-  activitySection: unknown;
   executionSection: unknown;
 }) {
   const execution = toRecord(executionSection);
@@ -224,11 +258,16 @@ export function ExecutionWorkbench({
                             type="checkbox"
                             checked={activity.selected}
                             onChange={(event) => {
+                              const nextSelected = event.target.checked;
                               updateGoal(goal.goalKey, (targetGoal) => ({
                                 ...targetGoal,
                                 headquartersActivities: targetGoal.headquartersActivities.map((item) =>
                                   item.activityKey === activity.activityKey
-                                    ? { ...item, selected: event.target.checked }
+                                    ? {
+                                        ...item,
+                                        selected: nextSelected,
+                                        clarifiedAt: nextSelected ? item.clarifiedAt || nowTimestampIso() : item.clarifiedAt,
+                                      }
                                     : item,
                                 ),
                               }));
@@ -239,78 +278,52 @@ export function ExecutionWorkbench({
 
                         {activity.selected ? (
                           <div className="mt-2 grid gap-2 md:grid-cols-3">
-                            <input
-                              className="h-9 rounded-md border bg-background px-3 text-sm"
-                              placeholder="负责人"
-                              value={activity.owner}
-                              onChange={(event) => {
-                                updateGoal(goal.goalKey, (targetGoal) => ({
-                                  ...targetGoal,
-                                  headquartersActivities: targetGoal.headquartersActivities.map((item) =>
-                                    item.activityKey === activity.activityKey ? { ...item, owner: event.target.value } : item,
-                                  ),
-                                }));
-                              }}
-                            />
-                            <input
-                              className="h-9 rounded-md border bg-background px-3 text-sm"
-                              type="date"
-                              value={activity.planStart}
-                              onChange={(event) => {
-                                updateGoal(goal.goalKey, (targetGoal) => ({
-                                  ...targetGoal,
-                                  headquartersActivities: targetGoal.headquartersActivities.map((item) =>
-                                    item.activityKey === activity.activityKey ? { ...item, planStart: event.target.value } : item,
-                                  ),
-                                }));
-                              }}
-                            />
-                            <input
-                              className="h-9 rounded-md border bg-background px-3 text-sm"
-                              type="date"
-                              value={activity.deadline}
-                              onChange={(event) => {
-                                updateGoal(goal.goalKey, (targetGoal) => ({
-                                  ...targetGoal,
-                                  headquartersActivities: targetGoal.headquartersActivities.map((item) =>
-                                    item.activityKey === activity.activityKey ? { ...item, deadline: event.target.value } : item,
-                                  ),
-                                }));
-                              }}
-                            />
-                            <input
-                              className="h-9 rounded-md border bg-background px-3 text-sm"
-                              type="date"
-                              value={activity.monitorAt}
-                              onChange={(event) => {
-                                updateGoal(goal.goalKey, (targetGoal) => ({
-                                  ...targetGoal,
-                                  headquartersActivities: targetGoal.headquartersActivities.map((item) =>
-                                    item.activityKey === activity.activityKey ? { ...item, monitorAt: event.target.value } : item,
-                                  ),
-                                }));
-                              }}
-                            />
-                            <select
-                              className="h-9 rounded-md border bg-background px-3 text-sm"
-                              value={activity.status}
-                              onChange={(event) => {
-                                updateGoal(goal.goalKey, (targetGoal) => ({
-                                  ...targetGoal,
-                                  headquartersActivities: targetGoal.headquartersActivities.map((item) =>
-                                    item.activityKey === activity.activityKey
-                                      ? { ...item, status: safeStatus(event.target.value) }
-                                      : item,
-                                  ),
-                                }));
-                              }}
-                            >
-                              {STATUS_OPTIONS.map((item) => (
-                                <option key={item.value} value={item.value}>
-                                  {item.label}
-                                </option>
-                              ))}
-                            </select>
+                            <div className="space-y-1">
+                              <p className="h-4 text-xs leading-4 text-muted-foreground">关键活动明确时间</p>
+                              <div className="flex h-9 items-center rounded-md border bg-muted px-3 text-sm text-muted-foreground">
+                                {formatClarifiedAt(activity.clarifiedAt)}
+                              </div>
+                            </div>
+                            <div className="space-y-1">
+                              <p className="h-4 text-xs leading-4 text-muted-foreground">预计开展时间</p>
+                              <input
+                                className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+                                type="date"
+                                aria-label="预计开展时间"
+                                value={activity.planStart}
+                                onChange={(event) => {
+                                  updateGoal(goal.goalKey, (targetGoal) => ({
+                                    ...targetGoal,
+                                    headquartersActivities: targetGoal.headquartersActivities.map((item) =>
+                                      item.activityKey === activity.activityKey ? { ...item, planStart: event.target.value } : item,
+                                    ),
+                                  }));
+                                }}
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <p className="h-4 text-xs leading-4 text-muted-foreground">状态</p>
+                              <select
+                                className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+                                value={activity.status}
+                                onChange={(event) => {
+                                  updateGoal(goal.goalKey, (targetGoal) => ({
+                                    ...targetGoal,
+                                    headquartersActivities: targetGoal.headquartersActivities.map((item) =>
+                                      item.activityKey === activity.activityKey
+                                        ? { ...item, status: safeStatus(event.target.value) }
+                                        : item,
+                                    ),
+                                  }));
+                                }}
+                              >
+                                {STATUS_OPTIONS.map((item) => (
+                                  <option key={item.value} value={item.value}>
+                                    {item.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
                             <Textarea
                               rows={2}
                               className="md:col-span-3"
@@ -343,7 +356,13 @@ export function ExecutionWorkbench({
                       onClick={() => {
                         updateGoal(goal.goalKey, (targetGoal) => ({
                           ...targetGoal,
-                          regionalActivities: [...targetGoal.regionalActivities, emptyRegionalActivity(`${goal.goalKey}-regional`)],
+                          regionalActivities: [
+                            ...targetGoal.regionalActivities,
+                            {
+                              ...emptyRegionalActivity(`${goal.goalKey}-regional`),
+                              clarifiedAt: nowTimestampIso(),
+                            },
+                          ],
                         }));
                       }}
                     >
@@ -369,76 +388,50 @@ export function ExecutionWorkbench({
                                 }));
                               }}
                             />
-                            <input
-                              className="h-9 rounded-md border bg-background px-3 text-sm"
-                              placeholder="负责人"
-                              value={activity.owner}
-                              onChange={(event) => {
-                                updateGoal(goal.goalKey, (targetGoal) => ({
-                                  ...targetGoal,
-                                  regionalActivities: targetGoal.regionalActivities.map((item) =>
-                                    item.id === activity.id ? { ...item, owner: event.target.value } : item,
-                                  ),
-                                }));
-                              }}
-                            />
-                            <input
-                              className="h-9 rounded-md border bg-background px-3 text-sm"
-                              type="date"
-                              value={activity.planStart}
-                              onChange={(event) => {
-                                updateGoal(goal.goalKey, (targetGoal) => ({
-                                  ...targetGoal,
-                                  regionalActivities: targetGoal.regionalActivities.map((item) =>
-                                    item.id === activity.id ? { ...item, planStart: event.target.value } : item,
-                                  ),
-                                }));
-                              }}
-                            />
-                            <input
-                              className="h-9 rounded-md border bg-background px-3 text-sm"
-                              type="date"
-                              value={activity.deadline}
-                              onChange={(event) => {
-                                updateGoal(goal.goalKey, (targetGoal) => ({
-                                  ...targetGoal,
-                                  regionalActivities: targetGoal.regionalActivities.map((item) =>
-                                    item.id === activity.id ? { ...item, deadline: event.target.value } : item,
-                                  ),
-                                }));
-                              }}
-                            />
-                            <input
-                              className="h-9 rounded-md border bg-background px-3 text-sm"
-                              type="date"
-                              value={activity.monitorAt}
-                              onChange={(event) => {
-                                updateGoal(goal.goalKey, (targetGoal) => ({
-                                  ...targetGoal,
-                                  regionalActivities: targetGoal.regionalActivities.map((item) =>
-                                    item.id === activity.id ? { ...item, monitorAt: event.target.value } : item,
-                                  ),
-                                }));
-                              }}
-                            />
-                            <select
-                              className="h-9 rounded-md border bg-background px-3 text-sm"
-                              value={activity.status}
-                              onChange={(event) => {
-                                updateGoal(goal.goalKey, (targetGoal) => ({
-                                  ...targetGoal,
-                                  regionalActivities: targetGoal.regionalActivities.map((item) =>
-                                    item.id === activity.id ? { ...item, status: safeStatus(event.target.value) } : item,
-                                  ),
-                                }));
-                              }}
-                            >
-                              {STATUS_OPTIONS.map((item) => (
-                                <option key={item.value} value={item.value}>
-                                  {item.label}
-                                </option>
-                              ))}
-                            </select>
+                            <div className="space-y-1">
+                              <p className="h-4 text-xs leading-4 text-muted-foreground">关键活动明确时间</p>
+                              <div className="flex h-9 items-center rounded-md border bg-muted px-3 text-sm text-muted-foreground">
+                                {formatClarifiedAt(activity.clarifiedAt)}
+                              </div>
+                            </div>
+                            <div className="space-y-1">
+                              <p className="h-4 text-xs leading-4 text-muted-foreground">预计开展时间</p>
+                              <input
+                                className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+                                type="date"
+                                aria-label="预计开展时间"
+                                value={activity.planStart}
+                                onChange={(event) => {
+                                  updateGoal(goal.goalKey, (targetGoal) => ({
+                                    ...targetGoal,
+                                    regionalActivities: targetGoal.regionalActivities.map((item) =>
+                                      item.id === activity.id ? { ...item, planStart: event.target.value } : item,
+                                    ),
+                                  }));
+                                }}
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <p className="h-4 text-xs leading-4 text-muted-foreground">状态</p>
+                              <select
+                                className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+                                value={activity.status}
+                                onChange={(event) => {
+                                  updateGoal(goal.goalKey, (targetGoal) => ({
+                                    ...targetGoal,
+                                    regionalActivities: targetGoal.regionalActivities.map((item) =>
+                                      item.id === activity.id ? { ...item, status: safeStatus(event.target.value) } : item,
+                                    ),
+                                  }));
+                                }}
+                              >
+                                {STATUS_OPTIONS.map((item) => (
+                                  <option key={item.value} value={item.value}>
+                                    {item.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
                             <Textarea
                               rows={2}
                               className="md:col-span-2"

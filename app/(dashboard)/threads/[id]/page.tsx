@@ -112,7 +112,6 @@ export default async function ThreadDetailPage({
         {tab === "execution" ? (
           <ExecutionWorkbench
             threadId={thread.id}
-            activitySection={thread.activitySection}
             executionSection={thread.executionSection}
           />
         ) : null}

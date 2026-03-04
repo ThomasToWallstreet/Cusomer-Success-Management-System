@@ -1,5 +1,7 @@
 "use client";
 
+import { useFormStatus } from "react-dom";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -38,9 +40,14 @@ function textOrEmpty(value?: string | null) {
   return value ?? "";
 }
 
+function SubmitButton({ label }: { label: string }) {
+  const { pending } = useFormStatus();
+  return <Button type="submit" disabled={pending}>{pending ? "保存中..." : label}</Button>;
+}
+
 export function CustomerListForm({ mode, role, submitLabel, action, defaultValues }: Props) {
   return (
-    <form action={action} className="space-y-4">
+    <form action={action} className="space-y-4" data-no-drag-scroll="true">
       <input type="hidden" name="role" value={role} />
       {mode === "edit" && defaultValues?.id ? <input type="hidden" name="id" value={defaultValues.id} /> : null}
 
@@ -146,7 +153,7 @@ export function CustomerListForm({ mode, role, submitLabel, action, defaultValue
       </div>
 
       <div className="flex justify-end">
-        <Button type="submit">{submitLabel}</Button>
+        <SubmitButton label={submitLabel} />
       </div>
     </form>
   );

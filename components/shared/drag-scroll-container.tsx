@@ -26,6 +26,15 @@ export function DragScrollContainer({
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
 
+  const shouldIgnoreDrag = (target: HTMLElement | null) => {
+    if (!target) return false;
+    return Boolean(
+      target.closest("[data-no-drag-scroll='true']") ||
+        target.closest("[role='dialog']") ||
+        target.closest("button,input,select,textarea,a,[contenteditable='true']"),
+    );
+  };
+
   const syncScrollableState = () => {
     const el = containerRef.current;
     if (!el) return;
@@ -62,7 +71,7 @@ export function DragScrollContainer({
         onPointerDown={(event) => {
           if (event.button !== 0) return;
           const target = event.target as HTMLElement;
-          if (target.closest("[data-no-drag-scroll='true']")) {
+          if (shouldIgnoreDrag(target)) {
             return;
           }
           const el = containerRef.current;
@@ -112,6 +121,8 @@ export function DragScrollContainer({
           state.moved = false;
         }}
         onClickCapture={(event) => {
+          const target = event.target as HTMLElement;
+          if (shouldIgnoreDrag(target)) return;
           if (!dragStateRef.current.moved) return;
           event.preventDefault();
           event.stopPropagation();

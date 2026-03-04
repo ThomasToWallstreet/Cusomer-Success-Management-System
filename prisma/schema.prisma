@@ -62,11 +62,71 @@ model Customer {
   tier             String?
   createdAt        DateTime             @default(now())
   updatedAt        DateTime             @updatedAt
+  contacts         CustomerContact[]
+  projectItems     CustomerProjectItem[]
+  scenarioItems    CustomerScenarioItem[]
   scenarios        KeySuccessScenario[]
   weeklyReports    WeeklyReport[]
   goalSnapshots    CustomerGoalWeeklySnapshot[]
   assignments      ManagerCustomerAssignment[]
   customerListItem CustomerListEntry?
+}
+
+model CustomerContact {
+  id                  String   @id @default(cuid())
+  customerId          String
+  name                String
+  department          String?
+  level               String?
+  satisfactionCurrent String   @default("无感知")
+  satisfactionTarget  String   @default("认可")
+  note                String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  customer            Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  scenarios           KeySuccessScenario[]
+
+  @@unique([customerId, name])
+  @@index([customerId])
+  @@index([customerId, satisfactionCurrent])
+}
+
+model CustomerProjectItem {
+  id                   String   @id @default(cuid())
+  customerId           String
+  name                 String
+  productLine          String?
+  targetDimension      Json?
+  targetDescription    String?
+  businessStage        String?
+  businessGoalAchieved String?
+  keyScenarioDescription String?
+  note                 String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  customer             Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  scenarios            KeySuccessScenario[]
+
+  @@unique([customerId, name])
+  @@index([customerId])
+}
+
+model CustomerScenarioItem {
+  id                   String   @id @default(cuid())
+  customerId           String
+  name                 String
+  businessNeedAnalysis String?
+  personalNeeds        String?
+  smartGoal            String?
+  alignedWithCustomer  String?
+  note                 String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  customer             Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  scenarios            KeySuccessScenario[]
+
+  @@unique([customerId, name])
+  @@index([customerId])
 }
 
 model ManagerCustomerAssignment {
@@ -85,6 +145,9 @@ model KeySuccessScenario {
   id                 String               @id @default(cuid())
   customer           String
   customerId         String?
+  projectItemId      String?
+  contactId          String?
+  scenarioItemId     String?
   keyPerson          String
   keyPersonDept      String?
   keyProjectScenario String
@@ -104,9 +167,15 @@ model KeySuccessScenario {
   weeklyReportLinks  WeeklyReportThread[]
   executionActions   ExecutionAction[]
   customerRecord     Customer?            @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  projectItem        CustomerProjectItem? @relation(fields: [projectItemId], references: [id], onDelete: SetNull)
+  contactRecord      CustomerContact?     @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  scenarioItem       CustomerScenarioItem? @relation(fields: [scenarioItemId], references: [id], onDelete: SetNull)
 
   @@index([customer])
   @@index([customerId])
+  @@index([projectItemId])
+  @@index([contactId])
+  @@index([scenarioItemId])
   @@index([ownerName])
   @@index([riskLevel, stage])
 }

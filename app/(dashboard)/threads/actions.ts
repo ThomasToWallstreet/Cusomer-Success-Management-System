@@ -14,6 +14,11 @@ import {
 import { getCustomerById, getOrCreateCustomerByName } from "@/lib/repos/customer-repo";
 import { listCustomerIdsByManager } from "@/lib/repos/manager-assignment-repo";
 import {
+  getCustomerContactById,
+} from "@/lib/repos/customer-contact-repo";
+import { getCustomerProjectItemById } from "@/lib/repos/customer-project-repo";
+import { getCustomerScenarioItemById } from "@/lib/repos/customer-scenario-repo";
+import {
   createThreadSchema,
   createThreadWorkflowSchema,
   deleteThreadSchema,
@@ -86,61 +91,22 @@ export async function createThreadAction(formData: FormData) {
 }
 
 export async function createThreadWorkflowAction(formData: FormData) {
+  const rawContactIds = formData.getAll("contactIds");
   const parsed = createThreadWorkflowSchema.safeParse({
     role: formData.get("role"),
     managerName: formData.get("managerName"),
     customerId: formData.get("customerId"),
-    projectScenario: formData.get("projectScenario"),
-    productLine: formData.getAll("productLine"),
-    keyScenarioDescription: formData.get("keyScenarioDescription"),
-    targetDimension: formData.getAll("targetDimension"),
-    targetDescription: formData.get("targetDescription"),
-    businessStage: formData.get("businessStage"),
-    businessGoalAchieved: formData.get("businessGoalAchieved"),
-    orgCurrentState: formData.get("orgCurrentState"),
-    orgChanges: formData.get("orgChanges"),
-    stakeholdersJson: formData.get("stakeholdersJson"),
-    businessNeedAnalysis: formData.get("businessNeedAnalysis"),
-    personalNeeds: formData.get("personalNeeds"),
-    smartGoal: formData.get("smartGoal"),
-    alignedWithCustomer: formData.get("alignedWithCustomer"),
+    projectItemId: formData.get("projectItemId"),
+    contactIds: rawContactIds,
+    scenarioItemId: formData.get("scenarioItemId"),
   });
   if (!parsed.success) {
     throw new Error(parsed.error.issues[0]?.message || "创建客户成功计划失败");
   }
 
-  let stakeholders: Array<{
-    name?: string;
-    department?: string;
-    level?: string;
-    description?: string;
-    currentState?: string;
-    target?: string;
-    acceptanceCriteria?: string;
-    changeAnalysis?: string;
-  }> = [];
-  try {
-    const raw = JSON.parse(parsed.data.stakeholdersJson);
-    if (Array.isArray(raw)) {
-      stakeholders = raw;
-    }
-  } catch {
-    throw new Error("关键人条目格式不正确");
-  }
-  const normalizedStakeholders = stakeholders
-    .map((item) => ({
-      name: item.name?.trim() || "",
-      department: item.department?.trim() || "",
-      level: item.level?.trim() || "",
-      description: item.description?.trim() || "",
-      currentState: item.currentState?.trim() || "",
-      target: item.target?.trim() || "",
-      acceptanceCriteria: item.acceptanceCriteria?.trim() || "",
-      changeAnalysis: item.changeAnalysis?.trim() || "",
-    }))
-    .filter((item) => item.name);
-  if (!normalizedStakeholders.length) {
-    throw new Error("至少需要填写 1 位关键人");
+  const normalizedContactIds = [...new Set(parsed.data.contactIds.map((id) => id.trim()).filter(Boolean))];
+  if (!normalizedContactIds.length) {
+    throw new Error("请至少选择一个关键人");
   }
 
   const customer = await getCustomerById(parsed.data.customerId);
@@ -161,52 +127,124 @@ export async function createThreadWorkflowAction(formData: FormData) {
     }
   }
 
-  const attachments = formData
-    .getAll("attachments")
-    .filter((item): item is File => item instanceof File && item.size > 0)
-    .map((file) => ({
-      fileName: file.name,
-      size: file.size,
-      type: file.type,
-    }));
+  const projectItem = await getCustomerProjectItemById(parsed.data.projectItemId);
+  if (!projectItem || projectItem.customerId !== customer.id) {
+    throw new Error("所选项目清单不存在或不属于当前客户");
+  }
+  const scenarioItem = await getCustomerScenarioItemById(parsed.data.scenarioItemId);
+  if (!scenarioItem || scenarioItem.customerId !== customer.id) {
+    throw new Error("所选场景清单不存在或不属于当前客户");
+  }
+
+  const selectedContacts = (
+    await Promise.all(normalizedContactIds.map((contactId) => getCustomerContactById(contactId)))
+  ).filter(
+    (contact): contact is {
+      id: string;
+      customerId: string;
+      name: string;
+      department: string | null;
+      level: string | null;
+      satisfactionCurrent: string;
+      satisfactionTarget: string;
+      note: string | null;
+    } => Boolean(contact),
+  );
+  if (selectedContacts.length !== normalizedContactIds.length) {
+    throw new Error("所选关键人不存在或已失效");
+  }
+  if (selectedContacts.some((contact) => contact.customerId !== customer.id)) {
+    throw new Error("所选关键人不存在或不属于当前客户");
+  }
+  const primaryContact = selectedContacts[0];
+  const stakeholders = selectedContacts.map((contact) => ({
+    name: contact.name,
+    department: contact.department || "",
+    level: contact.level || "",
+    description: "",
+    currentState: contact.satisfactionCurrent || "",
+    target: contact.satisfactionTarget || "",
+    acceptanceCriteria: "",
+    changeAnalysis: "",
+  }));
+
+  const contactMasterSnapshotList = selectedContacts.map((contact) => ({
+    id: contact.id,
+    name: contact.name,
+    department: contact.department,
+    level: contact.level,
+    satisfactionCurrent: contact.satisfactionCurrent,
+    satisfactionTarget: contact.satisfactionTarget,
+    note: contact.note,
+  }));
 
   const thread = await createThread({
     customer: customer.name,
     customerRecord: {
       connect: { id: customer.id },
     },
-    keyPerson: normalizedStakeholders[0].name,
-    keyPersonDept: normalizedStakeholders[0].department || null,
-    keyProjectScenario: parsed.data.projectScenario,
-    productLine: parsed.data.productLine.length ? parsed.data.productLine.join(",") : null,
+    projectItem: { connect: { id: projectItem.id } },
+    contactRecord: { connect: { id: primaryContact.id } },
+    scenarioItem: { connect: { id: scenarioItem.id } },
+    keyPerson: selectedContacts.map((item) => item.name).join("、"),
+    keyPersonDept: primaryContact.department || null,
+    keyProjectScenario: projectItem.name,
+    productLine: projectItem.productLine || null,
     ownerName: effectiveOwnerName,
     stage: "BASIC_INFO",
     stageStatus: "IN_PROGRESS",
     riskLevel: "GREEN",
     goalSection: {
       module: "经营目标-扩大收入",
-      targetDimension: parsed.data.targetDimension,
-      targetDescription: parsed.data.targetDescription,
-      businessStage: parsed.data.businessStage,
-      businessGoalAchieved: parsed.data.businessGoalAchieved,
+      targetDimension: projectItem.targetDimension,
+      targetDescription: projectItem.targetDescription,
+      businessStage: projectItem.businessStage,
+      businessGoalAchieved: projectItem.businessGoalAchieved,
+      projectMasterSnapshot: {
+        id: projectItem.id,
+        name: projectItem.name,
+        productLine: projectItem.productLine,
+        targetDimension: projectItem.targetDimension,
+        targetDescription: projectItem.targetDescription,
+        businessStage: projectItem.businessStage,
+        businessGoalAchieved: projectItem.businessGoalAchieved,
+      },
     },
     orgSection: {
       module: "客户成功-组织关系",
-      orgCurrentState: parsed.data.orgCurrentState,
-      orgChanges: parsed.data.orgChanges,
-      stakeholders: normalizedStakeholders,
+      stakeholders,
+      contactMasterSnapshot: {
+        id: primaryContact.id,
+        name: primaryContact.name,
+        department: primaryContact.department,
+        level: primaryContact.level,
+        satisfactionCurrent: primaryContact.satisfactionCurrent,
+        satisfactionTarget: primaryContact.satisfactionTarget,
+      },
+      contactMasterSnapshotList,
     },
     successSection: {
       module: "客户成功-价值兑现",
-      businessNeedAnalysis: parsed.data.businessNeedAnalysis,
-      personalNeeds: parsed.data.personalNeeds,
-      smartGoal: parsed.data.smartGoal,
-      alignedWithCustomer: parsed.data.alignedWithCustomer,
-      attachments,
+      businessNeedAnalysis: scenarioItem.businessNeedAnalysis,
+      personalNeeds: scenarioItem.personalNeeds,
+      smartGoal: scenarioItem.smartGoal,
+      alignedWithCustomer: scenarioItem.alignedWithCustomer,
+      scenarioMasterSnapshot: {
+        id: scenarioItem.id,
+        name: scenarioItem.name,
+        businessNeedAnalysis: scenarioItem.businessNeedAnalysis,
+        personalNeeds: scenarioItem.personalNeeds,
+        smartGoal: scenarioItem.smartGoal,
+        alignedWithCustomer: scenarioItem.alignedWithCustomer,
+      },
     },
     activitySection: {
       module: "基本信息",
-      keyScenarioDescription: parsed.data.keyScenarioDescription,
+      keyScenarioDescription: projectItem.keyScenarioDescription,
+      projectMasterSnapshot: {
+        id: projectItem.id,
+        keyScenarioDescription: projectItem.keyScenarioDescription,
+      },
     },
   });
 

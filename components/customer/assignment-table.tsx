@@ -64,7 +64,7 @@ export function AssignmentTable({
                 新增客户清单
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-h-[88vh] overflow-y-auto sm:max-w-4xl">
+            <DialogContent className="max-h-[88vh] overflow-y-auto sm:max-w-4xl" data-no-drag-scroll="true">
               <DialogHeader>
                 <DialogTitle>新增客户清单</DialogTitle>
                 <DialogDescription>可直接在网页端维护客户清单全字段。</DialogDescription>
@@ -151,7 +151,7 @@ export function AssignmentTable({
                             <Pencil className="h-4 w-4" />
                           </Button>
                         </DialogTrigger>
-                        <DialogContent className="max-h-[88vh] overflow-y-auto sm:max-w-4xl">
+                        <DialogContent className="max-h-[88vh] overflow-y-auto sm:max-w-4xl" data-no-drag-scroll="true">
                           <DialogHeader>
                             <DialogTitle>编辑客户清单</DialogTitle>
                             <DialogDescription>修改后将同步更新客户归属与经理映射。</DialogDescription>

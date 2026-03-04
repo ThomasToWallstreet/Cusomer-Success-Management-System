@@ -22,6 +22,7 @@ import {
   updateThreadSectionSchema,
 } from "@/lib/validators/thread";
 import { isSupervisorRole, parseViewerRole } from "@/lib/viewer-role";
+import { syncExecutionActionsFromSection } from "@/lib/services/execution-action-service";
 
 export async function createThreadAction(formData: FormData) {
   const parsed = createThreadSchema.safeParse({
@@ -256,6 +257,16 @@ export async function updateThreadSectionAction(formData: FormData) {
   }
 
   await updateThreadSection(parsed.data.id, parsed.data.section, payload as never);
+  if (parsed.data.section === "executionSection") {
+    const thread = await getThreadDetail(parsed.data.id);
+    await syncExecutionActionsFromSection({
+      threadId: parsed.data.id,
+      ownerName: thread?.ownerName || "",
+      executionSection: payload,
+      changedBy: String(formData.get("changedBy") || "").trim() || undefined,
+      source: "UI_EXECUTION",
+    });
+  }
   revalidatePath(`/threads/${parsed.data.id}`);
   revalidatePath("/threads");
 

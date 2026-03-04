@@ -28,6 +28,33 @@ enum RiskLevel {
   RED
 }
 
+enum ExecutionSourceType {
+  HEADQUARTERS
+  REGIONAL
+}
+
+enum ExecutionActionStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+  BLOCKED
+}
+
+enum ExecutionActionEventType {
+  CREATED
+  STATUS_CHANGED
+  DEADLINE_CHANGED
+  NOTE_UPDATED
+  UPDATED
+  ARCHIVED
+}
+
+enum ExecutionActionChangeSource {
+  UI_EXECUTION
+  UI_WEEKLY_QUICK
+  SYSTEM_SYNC
+}
+
 model Customer {
   id               String               @id @default(cuid())
   name             String               @unique
@@ -75,6 +102,7 @@ model KeySuccessScenario {
   createdAt          DateTime             @default(now())
   updatedAt          DateTime             @updatedAt
   weeklyReportLinks  WeeklyReportThread[]
+  executionActions   ExecutionAction[]
   customerRecord     Customer?            @relation(fields: [customerId], references: [id], onDelete: SetNull)
 
   @@index([customer])
@@ -102,10 +130,67 @@ model WeeklyReport {
   requiredNextActions    Json?
   createdAt      DateTime             @default(now())
   threadLinks    WeeklyReportThread[]
+  actionSnapshots WeeklyReportActionSnapshot[]
   customerRecord Customer?            @relation(fields: [customerId], references: [id], onDelete: SetNull)
 
   @@index([ownerName, weekStart])
   @@index([customerId, weekStart])
+}
+
+model ExecutionAction {
+  id          String                @id @default(cuid())
+  threadId    String
+  externalKey String
+  goalKey     String
+  sourceType  ExecutionSourceType
+  title       String
+  ownerName   String
+  status      ExecutionActionStatus @default(TODO)
+  planStartAt DateTime?
+  deadlineAt  DateTime?
+  closedAt    DateTime?
+  note        String?
+  isArchived  Boolean               @default(false)
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+  thread      KeySuccessScenario    @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  events      ExecutionActionEvent[]
+  snapshots   WeeklyReportActionSnapshot[]
+
+  @@unique([threadId, externalKey])
+  @@index([threadId, status])
+  @@index([threadId, deadlineAt])
+  @@index([goalKey])
+}
+
+model ExecutionActionEvent {
+  id         String                      @id @default(cuid())
+  actionId   String
+  eventType  ExecutionActionEventType
+  beforeValue Json?
+  afterValue Json?
+  changedBy  String?
+  source     ExecutionActionChangeSource @default(UI_EXECUTION)
+  changedAt  DateTime                    @default(now())
+  action     ExecutionAction             @relation(fields: [actionId], references: [id], onDelete: Cascade)
+
+  @@index([actionId, changedAt])
+  @@index([eventType, changedAt])
+}
+
+model WeeklyReportActionSnapshot {
+  id                 String                @id @default(cuid())
+  weeklyReportId     String
+  actionId           String
+  baselineStatus     ExecutionActionStatus
+  baselineDeadlineAt DateTime?
+  baselineClosedAt   DateTime?
+  capturedAt         DateTime              @default(now())
+  weeklyReport       WeeklyReport          @relation(fields: [weeklyReportId], references: [id], onDelete: Cascade)
+  action             ExecutionAction       @relation(fields: [actionId], references: [id], onDelete: Cascade)
+
+  @@unique([weeklyReportId, actionId])
+  @@index([actionId])
 }
 
 model WeeklyReportThread {

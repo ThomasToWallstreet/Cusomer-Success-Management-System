@@ -1,8 +1,9 @@
 import Link from "next/link";
-import { format } from "date-fns";
-import { zhCN } from "date-fns/locale";
 
+import { deleteWeeklyReportAction } from "@/app/(dashboard)/weekly-reports/actions";
+import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { formatDateCST, formatDateTimeCST } from "@/lib/datetime";
 
 type Row = {
   id: string;
@@ -32,7 +33,14 @@ const recognitionLabelMap: Record<string, string> = {
   NOT_APPLICABLE: "不涉及",
 };
 
-export function WeeklyReportTable({ rows }: { rows: Row[] }) {
+type Props = {
+  rows: Row[];
+  role?: string;
+  managerName?: string;
+};
+
+export function WeeklyReportTable({ rows, role, managerName }: Props) {
+  const isSupervisor = role === "supervisor";
   return (
     <div className="rounded-lg border bg-card">
       <Table>
@@ -46,30 +54,47 @@ export function WeeklyReportTable({ rows }: { rows: Row[] }) {
             <TableHead>满意度风险</TableHead>
             <TableHead>关联关键场景数</TableHead>
             <TableHead>创建时间</TableHead>
+            <TableHead className="text-right">操作</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {rows.map((row) => (
-            <TableRow key={row.id}>
-              <TableCell>{row.customerName}</TableCell>
-              <TableCell>{row.ownerName}</TableCell>
-              <TableCell>
-                {format(row.weekStart, "yyyy-MM-dd", { locale: zhCN })} ~{" "}
-                {format(row.weekEnd, "yyyy-MM-dd", { locale: zhCN })}
-              </TableCell>
-              <TableCell className="max-w-[380px] truncate">
-                <Link href={`/weekly-reports/${row.id}`} className="hover:underline">
-                  {row.summary}
-                </Link>
-              </TableCell>
-              <TableCell>{recognitionLabelMap[row.keyStakeholderRecognitionResult || ""] || "-"}</TableCell>
-              <TableCell>{riskLabelMap[row.satisfactionRiskLevel || ""] || "-"}</TableCell>
-              <TableCell>{row.threadCount}</TableCell>
-              <TableCell className="text-muted-foreground">
-                {format(row.createdAt, "yyyy-MM-dd HH:mm", { locale: zhCN })}
-              </TableCell>
-            </TableRow>
-          ))}
+          {rows.map((row) => {
+            const canDelete = isSupervisor || (!!managerName && managerName !== "ALL" && row.ownerName === managerName);
+            return (
+              <TableRow key={row.id}>
+                <TableCell>{row.customerName}</TableCell>
+                <TableCell>{row.ownerName}</TableCell>
+                <TableCell>
+                  {formatDateCST(row.weekStart)} ~ {formatDateCST(row.weekEnd)}
+                </TableCell>
+                <TableCell className="max-w-[380px] truncate">
+                  <Link href={`/weekly-reports/${row.id}`} className="hover:underline">
+                    {row.summary}
+                  </Link>
+                </TableCell>
+                <TableCell>{recognitionLabelMap[row.keyStakeholderRecognitionResult || ""] || "-"}</TableCell>
+                <TableCell>{riskLabelMap[row.satisfactionRiskLevel || ""] || "-"}</TableCell>
+                <TableCell>{row.threadCount}</TableCell>
+                <TableCell className="text-muted-foreground">
+                  {formatDateTimeCST(row.createdAt)}
+                </TableCell>
+                <TableCell className="text-right">
+                  {canDelete ? (
+                    <form action={deleteWeeklyReportAction}>
+                      <input type="hidden" name="id" value={row.id} />
+                      <input type="hidden" name="role" value={role || ""} />
+                      <input type="hidden" name="managerName" value={managerName || ""} />
+                      <Button type="submit" variant="outline" size="sm">
+                        删除
+                      </Button>
+                    </form>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">-</span>
+                  )}
+                </TableCell>
+              </TableRow>
+            );
+          })}
         </TableBody>
       </Table>
       {rows.length === 0 ? <p className="p-4 text-center text-sm text-muted-foreground">暂无周报</p> : null}

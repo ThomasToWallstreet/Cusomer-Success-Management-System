@@ -1,7 +1,5 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { format } from "date-fns";
-import { zhCN } from "date-fns/locale";
 
 import { QualitativeStatusBadge } from "@/components/shared/qualitative-status-badge";
 import { GoalProgressPanel } from "@/components/thread/goal-progress-panel";
@@ -13,6 +11,7 @@ import { ensureCustomerGoalWeeklySnapshot } from "@/lib/repos/customer-goal-week
 import { getCustomerById } from "@/lib/repos/customer-repo";
 import { listCustomerIdsByManager, resolveCurrentManager } from "@/lib/repos/manager-assignment-repo";
 import { listThreads } from "@/lib/repos/thread-repo";
+import { formatDateCST, formatDateTimeCST } from "@/lib/datetime";
 import {
   getAlignedTone,
   getBusinessGoalTone,
@@ -145,7 +144,7 @@ export default async function CustomerPlanDetailPage({
           <span>客户名称：{customer.name}</span>
           <span>行业：{customer.industry || "-"}</span>
           <span>大客户服务经理：{managerName || "-"}</span>
-          <span>最近更新：{format(selected.updatedAt, "yyyy-MM-dd HH:mm", { locale: zhCN })}</span>
+          <span>最近更新：{formatDateTimeCST(selected.updatedAt)}</span>
           <Button size="sm" asChild className="ml-auto">
             <Link
               href={`/threads/new?${new URLSearchParams({
@@ -189,7 +188,7 @@ export default async function CustomerPlanDetailPage({
                   <div className="mt-2 flex flex-wrap gap-4 text-xs text-muted-foreground">
                     <span>负责人：{scenario.ownerName}</span>
                     <span>关键人：{scenario.keyPerson}</span>
-                    <span>更新：{format(scenario.updatedAt, "yyyy-MM-dd", { locale: zhCN })}</span>
+                    <span>更新：{formatDateCST(scenario.updatedAt)}</span>
                   </div>
                   <div className="mt-2 flex flex-wrap gap-2">
                     <QualitativeStatusBadge
@@ -221,7 +220,7 @@ export default async function CustomerPlanDetailPage({
               <p className="text-xs text-muted-foreground"></p>
             </div>
             <Button variant="outline" size="sm" asChild>
-              <Link href={`/threads/${selected.id}`}>进入完整编辑页</Link>
+              <Link href={`/threads/${selected.id}`}>进入工作流</Link>
             </Button>
           </div>
 

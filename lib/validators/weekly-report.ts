@@ -50,3 +50,33 @@ export const generateWeeklyReportFromExecutionSchema = z
     message: "周开始日期不能晚于周结束日期",
     path: ["weekStart"],
   });
+
+export const deleteWeeklyReportSchema = z.object({
+  id: z.string().min(1, "周报ID缺失"),
+  role: z.string().optional(),
+  managerName: z.string().optional(),
+});
+
+export const updateWeeklyReportSchema = z.object({
+  id: z.string().min(1, "周报ID缺失"),
+  role: z.string().optional(),
+  managerName: z.string().optional(),
+  weeklyObjectives: z.string().min(1, "请填写本周承接目标"),
+  summary: z.string().min(1, "本周总结必填"),
+  risks: z.string().optional(),
+  nextWeekPlan: z.string().optional(),
+  needSupport: z.string().optional(),
+  deliveryBreakthroughRiskResult: z.enum(["WORSENING", "NO_CHANGE", "IMPROVING", "SIGNIFICANT_IMPROVING"]),
+  deliveryBreakthroughRiskComment: z.string().min(1, "请填写突破落地风险结果说明"),
+  keyStakeholderRecognitionResult: z.enum([
+    "NOT_YET_RESULT",
+    "PENDING_CONFIRMATION",
+    "AVERAGE_RESULT",
+    "GOOD_RECOGNIZED",
+    "BAD_NOT_RECOGNIZED",
+    "NOT_APPLICABLE",
+  ]),
+  keyStakeholderRecognitionComment: z.string().min(1, "请填写关键人认可结果说明"),
+  satisfactionRiskLevel: z.enum(["HIGH_RED", "MEDIUM_YELLOW", "LOW_GREEN"]),
+  satisfactionRiskReason: z.string().min(1, "请填写满意度风险评估理由"),
+});

@@ -190,6 +190,11 @@ export async function getWeeklyReportDetail(id: string) {
     where: { id },
     include: {
       customerRecord: true,
+      actionSnapshots: {
+        include: {
+          action: true,
+        },
+      },
       threadLinks: {
         include: {
           thread: {
@@ -199,6 +204,56 @@ export async function getWeeklyReportDetail(id: string) {
           },
         },
       },
+    },
+  });
+}
+
+export async function deleteWeeklyReport(id: string) {
+  return prisma.weeklyReport.delete({
+    where: { id },
+  });
+}
+
+export async function updateWeeklyReport(
+  id: string,
+  data: {
+    weeklyObjectives: string;
+    summary: string;
+    risks?: string;
+    nextWeekPlan?: string;
+    needSupport?: string;
+    deliveryBreakthroughRiskResult: "WORSENING" | "NO_CHANGE" | "IMPROVING" | "SIGNIFICANT_IMPROVING";
+    deliveryBreakthroughRiskComment: string;
+    keyStakeholderRecognitionResult:
+      | "NOT_YET_RESULT"
+      | "PENDING_CONFIRMATION"
+      | "AVERAGE_RESULT"
+      | "GOOD_RECOGNIZED"
+      | "BAD_NOT_RECOGNIZED"
+      | "NOT_APPLICABLE";
+    keyStakeholderRecognitionComment: string;
+    satisfactionRiskLevel: "HIGH_RED" | "MEDIUM_YELLOW" | "LOW_GREEN";
+    satisfactionRiskReason: string;
+  },
+) {
+  return prisma.weeklyReport.update({
+    where: { id },
+    data: {
+      summary: data.summary,
+      risks: data.risks || null,
+      nextWeekPlan: data.nextWeekPlan || null,
+      needSupport: data.needSupport || null,
+      weeklyObjectives: {
+        text: data.weeklyObjectives,
+      },
+      qualitativeConclusions: {
+        deliveryBreakthroughRiskResult: data.deliveryBreakthroughRiskResult,
+        deliveryBreakthroughRiskComment: data.deliveryBreakthroughRiskComment,
+        keyStakeholderRecognitionResult: data.keyStakeholderRecognitionResult,
+        keyStakeholderRecognitionComment: data.keyStakeholderRecognitionComment,
+      },
+      satisfactionRiskLevel: data.satisfactionRiskLevel,
+      satisfactionRiskReason: data.satisfactionRiskReason,
     },
   });
 }

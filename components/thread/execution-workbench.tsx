@@ -275,6 +275,8 @@ export function ExecutionWorkbench({
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const managerName = searchParams.get("managerName") || "";
+  const role = searchParams.get("role") || "";
   const execution = toRecord(executionSection);
   const initialGoals = normalizeGoals(execution);
   const [goals, setGoals] = useState<GoalPlan[]>(initialGoals);
@@ -324,6 +326,7 @@ export function ExecutionWorkbench({
         <input type="hidden" name="section" value="executionSection" />
         <input type="hidden" name="sectionJson" value={serializedSectionJson} />
         <input type="hidden" name="redirectTo" value={redirectTo} />
+        <input type="hidden" name="changedBy" value={managerName || role || "unknown"} />
 
         {goals.map((goal) => {
           const expanded = expandedGoalKey === goal.goalKey;

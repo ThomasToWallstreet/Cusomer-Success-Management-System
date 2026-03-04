@@ -4,62 +4,22 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { buildThreadExecutionSummary } from "@/lib/execution-progress";
-import { createWeeklyReport } from "@/lib/repos/weekly-report-repo";
+import { createWeeklyReport, deleteWeeklyReport, getWeeklyReportDetail, updateWeeklyReport } from "@/lib/repos/weekly-report-repo";
+import { captureWeeklyReportActionSnapshot, createExecutionActionEvent, updateExecutionActionStatus } from "@/lib/repos/execution-action-repo";
 import { listThreadsByCustomerIds } from "@/lib/repos/thread-repo";
 import { listCustomerIdsByManager } from "@/lib/repos/manager-assignment-repo";
 import {
-  createWeeklyReportSchema,
+  deleteWeeklyReportSchema,
   generateWeeklyReportFromExecutionSchema,
+  updateWeeklyReportSchema,
 } from "@/lib/validators/weekly-report";
 import { isSupervisorRole, parseViewerRole } from "@/lib/viewer-role";
 
 export async function createWeeklyReportAction(formData: FormData) {
-  const parsed = createWeeklyReportSchema.safeParse({
-    role: formData.get("role"),
-    managerName: formData.get("managerName"),
-    customerId: formData.get("customerId"),
-    ownerName: formData.get("ownerName"),
-    weekStart: formData.get("weekStart"),
-    weekEnd: formData.get("weekEnd"),
-    summary: formData.get("summary"),
-    risks: formData.get("risks"),
-    nextWeekPlan: formData.get("nextWeekPlan"),
-    needSupport: formData.get("needSupport"),
-    threadIds: formData.getAll("threadIds"),
-    weeklyObjectives: formData.get("weeklyObjectives"),
-    plannedExecutionJson: formData.get("plannedExecutionJson"),
-    executedItemsJson: formData.get("executedItemsJson"),
-    requiredNextActionsJson: formData.get("requiredNextActionsJson"),
-    deliveryBreakthroughRiskResult: formData.get("deliveryBreakthroughRiskResult"),
-    deliveryBreakthroughRiskComment: formData.get("deliveryBreakthroughRiskComment"),
-    keyStakeholderRecognitionResult: formData.get("keyStakeholderRecognitionResult"),
-    keyStakeholderRecognitionComment: formData.get("keyStakeholderRecognitionComment"),
-    satisfactionRiskLevel: formData.get("satisfactionRiskLevel"),
-    satisfactionRiskReason: formData.get("satisfactionRiskReason"),
-  });
-
-  if (!parsed.success) {
-    throw new Error(parsed.error.issues[0]?.message || "创建周报失败");
-  }
-
-  const role = parseViewerRole(parsed.data.role);
-  const managerName = parsed.data.managerName?.trim();
-  if (!isSupervisorRole(role) && managerName) {
-    const customerIds = await listCustomerIdsByManager(managerName);
-    if (!customerIds.includes(parsed.data.customerId)) {
-      throw new Error("当前经理不可为该客户创建周报");
-    }
-  }
-
-  const report = await createWeeklyReport({
-    ...parsed.data,
-    threadIds: [...new Set(parsed.data.threadIds)],
-  });
-
-  revalidatePath("/weekly-reports");
-  revalidatePath("/threads");
-  revalidatePath("/dashboard");
-  redirect(`/weekly-reports/${report.id}`);
+  // 周报创建已收敛为“执行推进自动生成”单入口，保留该 action 仅用于兼容旧入口。
+  // 若用户仍命中旧入口，直接回到周报列表并提示使用自动生成。
+  void formData;
+  throw new Error("周报已改为执行推进自动生成，请在客户成功计划详情页的“周报生成”中操作");
 }
 
 export async function generateWeeklyReportFromExecutionAction(formData: FormData) {
@@ -160,9 +120,137 @@ export async function generateWeeklyReportFromExecutionAction(formData: FormData
     needSupport: "",
     nextWeekPlan: "",
   });
+  await captureWeeklyReportActionSnapshot(report.id, selectedThreads.map((item) => item.id));
 
   revalidatePath("/weekly-reports");
   revalidatePath("/threads");
   revalidatePath("/dashboard");
-  redirect(`/weekly-reports/${report.id}`);
+  const editQuery = new URLSearchParams({
+    ...(managerName ? { managerName } : {}),
+    ...(parsed.data.role ? { role: parsed.data.role } : {}),
+  }).toString();
+  redirect(editQuery ? `/weekly-reports/${report.id}/edit?${editQuery}` : `/weekly-reports/${report.id}/edit`);
+}
+
+export async function deleteWeeklyReportAction(formData: FormData) {
+  const parsed = deleteWeeklyReportSchema.safeParse({
+    id: formData.get("id"),
+    role: formData.get("role"),
+    managerName: formData.get("managerName"),
+  });
+
+  if (!parsed.success) {
+    throw new Error(parsed.error.issues[0]?.message || "删除周报失败");
+  }
+
+  const report = await getWeeklyReportDetail(parsed.data.id);
+  if (!report) {
+    throw new Error("周报不存在或已删除");
+  }
+
+  const role = parseViewerRole(parsed.data.role);
+  const managerName = parsed.data.managerName?.trim();
+  if (!isSupervisorRole(role)) {
+    if (!managerName || managerName === "ALL") {
+      throw new Error("当前经理身份无效，无法删除周报");
+    }
+    if (report.ownerName !== managerName) {
+      throw new Error("当前经理仅可删除本人周报");
+    }
+  }
+
+  await deleteWeeklyReport(parsed.data.id);
+
+  revalidatePath("/weekly-reports");
+  revalidatePath("/dashboard");
+  revalidatePath("/threads");
+}
+
+export async function updateWeeklyReportAction(formData: FormData) {
+  const parsed = updateWeeklyReportSchema.safeParse({
+    id: formData.get("id"),
+    role: formData.get("role"),
+    managerName: formData.get("managerName"),
+    weeklyObjectives: formData.get("weeklyObjectives"),
+    summary: formData.get("summary"),
+    risks: formData.get("risks"),
+    nextWeekPlan: formData.get("nextWeekPlan"),
+    needSupport: formData.get("needSupport"),
+    deliveryBreakthroughRiskResult: formData.get("deliveryBreakthroughRiskResult"),
+    deliveryBreakthroughRiskComment: formData.get("deliveryBreakthroughRiskComment"),
+    keyStakeholderRecognitionResult: formData.get("keyStakeholderRecognitionResult"),
+    keyStakeholderRecognitionComment: formData.get("keyStakeholderRecognitionComment"),
+    satisfactionRiskLevel: formData.get("satisfactionRiskLevel"),
+    satisfactionRiskReason: formData.get("satisfactionRiskReason"),
+  });
+
+  if (!parsed.success) {
+    throw new Error(parsed.error.issues[0]?.message || "更新周报失败");
+  }
+
+  const report = await getWeeklyReportDetail(parsed.data.id);
+  if (!report) {
+    throw new Error("周报不存在或已删除");
+  }
+
+  const role = parseViewerRole(parsed.data.role);
+  const managerName = parsed.data.managerName?.trim();
+  if (!isSupervisorRole(role)) {
+    if (!managerName || managerName === "ALL") {
+      throw new Error("当前经理身份无效，无法编辑周报");
+    }
+    if (report.ownerName !== managerName) {
+      throw new Error("当前经理仅可编辑本人周报");
+    }
+  }
+
+  await updateWeeklyReport(parsed.data.id, parsed.data);
+
+  revalidatePath("/weekly-reports");
+  revalidatePath(`/weekly-reports/${parsed.data.id}`);
+  revalidatePath(`/weekly-reports/${parsed.data.id}/edit`);
+  revalidatePath("/dashboard");
+  redirect(`/weekly-reports/${parsed.data.id}`);
+}
+
+export async function updateWeeklyActionStatusQuickAction(formData: FormData) {
+  const weeklyReportId = String(formData.get("weeklyReportId") || "").trim();
+  const actionId = String(formData.get("actionId") || "").trim();
+  const nextStatus = String(formData.get("nextStatus") || "").trim() as "TODO" | "IN_PROGRESS" | "DONE" | "BLOCKED";
+  const managerName = String(formData.get("managerName") || "").trim();
+  const roleRaw = String(formData.get("role") || "").trim();
+
+  if (!weeklyReportId || !actionId) {
+    throw new Error("快捷更新参数缺失");
+  }
+  if (!["TODO", "IN_PROGRESS", "DONE", "BLOCKED"].includes(nextStatus)) {
+    throw new Error("状态值不合法");
+  }
+  const report = await getWeeklyReportDetail(weeklyReportId);
+  if (!report) {
+    throw new Error("周报不存在或已删除");
+  }
+  const role = parseViewerRole(roleRaw);
+  if (!isSupervisorRole(role)) {
+    if (!managerName || managerName === "ALL") {
+      throw new Error("当前经理身份无效，无法快捷更新");
+    }
+    if (report.ownerName !== managerName) {
+      throw new Error("当前经理仅可更新本人周报动作");
+    }
+  }
+
+  const action = await updateExecutionActionStatus(actionId, nextStatus);
+  await createExecutionActionEvent({
+    actionId: action.id,
+    eventType: "STATUS_CHANGED",
+    beforeValue: {},
+    afterValue: { status: nextStatus, via: "weekly-quick" },
+    changedBy: managerName || roleRaw || "unknown",
+    source: "UI_WEEKLY_QUICK",
+  });
+
+  revalidatePath(`/weekly-reports/${weeklyReportId}`);
+  revalidatePath("/weekly-reports");
+  revalidatePath("/threads");
 }

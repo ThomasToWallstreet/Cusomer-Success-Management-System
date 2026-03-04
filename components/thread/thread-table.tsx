@@ -1,6 +1,4 @@
 import Link from "next/link";
-import { format } from "date-fns";
-import { zhCN } from "date-fns/locale";
 
 import { RiskBadge } from "@/components/shared/risk-badge";
 import {
@@ -12,6 +10,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { stageOptions } from "@/lib/constants/domain";
+import { formatDateTimeCST } from "@/lib/datetime";
 
 type ThreadRow = {
   id: string;
@@ -66,7 +65,7 @@ export function ThreadTable({ rows }: { rows: ThreadRow[] }) {
                 {item.nextAction || "-"}
               </TableCell>
               <TableCell className="text-muted-foreground">
-                {format(item.updatedAt, "yyyy-MM-dd HH:mm", { locale: zhCN })}
+                {formatDateTimeCST(item.updatedAt)}
               </TableCell>
             </TableRow>
           ))}

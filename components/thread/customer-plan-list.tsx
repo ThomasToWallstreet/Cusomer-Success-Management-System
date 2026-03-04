@@ -1,12 +1,11 @@
 import Link from "next/link";
-import { format } from "date-fns";
-import { zhCN } from "date-fns/locale";
 import { Trash2 } from "lucide-react";
 
 import { deleteThreadAction } from "@/app/(dashboard)/threads/actions";
 import { GoalProgressPanel, GoalTrendMini } from "@/components/thread/goal-progress-panel";
 import { StageStatusBadge } from "@/components/shared/stage-status-badge";
 import { Button } from "@/components/ui/button";
+import { formatDateCST, formatDateTimeCST } from "@/lib/datetime";
 import { buildThreadExecutionSummary } from "@/lib/execution-progress";
 import { getScenarioBusinessStageLabel, getScenarioGoalProgress } from "@/lib/thread-goal-progress";
 
@@ -123,7 +122,7 @@ export function CustomerPlanList({
                 <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
                   <span>关键场景数：{group.scenarios.length}</span>
                   <span>关键人数：{keyPeopleCount}</span>
-                  <span>最近更新：{format(group.updatedAt, "yyyy-MM-dd HH:mm", { locale: zhCN })}</span>
+                  <span>最近更新：{formatDateTimeCST(group.updatedAt)}</span>
                 </div>
                 {customerDetailHref ? (
                   <Button variant="outline" size="sm" asChild>
@@ -165,7 +164,7 @@ export function CustomerPlanList({
                 <div className="mt-2 flex flex-wrap gap-4 text-sm text-muted-foreground">
                   <span>执行事项总数：{executionTotal}</span>
                   <span>已完成事项：{executionDoneTotal}</span>
-                  <span>最近闭环时间：{executionLastCloseAt ? format(new Date(executionLastCloseAt), "yyyy-MM-dd", { locale: zhCN }) : "-"}</span>
+                  <span>最近闭环时间：{executionLastCloseAt ? formatDateCST(executionLastCloseAt) : "-"}</span>
                 </div>
               </section>
               {group.scenarios.map((scenario) => {

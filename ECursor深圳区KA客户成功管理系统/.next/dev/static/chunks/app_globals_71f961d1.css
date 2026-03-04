@@ -90,7 +90,6 @@
     --color-amber-100: #fef3c6;
     --color-amber-200: #fee685;
     --color-amber-500: #f99c00;
-    --color-amber-600: #dd7400;
     --color-amber-700: #b75000;
     --color-amber-800: #953d00;
     --color-emerald-50: #ecfdf5;
@@ -165,7 +164,6 @@
       --color-amber-100: lab(95.916% -1.21653 23.111);
       --color-amber-200: lab(91.7203% -.505269 49.9084);
       --color-amber-500: lab(72.7183% 31.8672 97.9407);
-      --color-amber-600: lab(60.3514% 40.5624 87.1228);
       --color-amber-700: lab(47.2709% 42.9082 69.2966);
       --color-amber-800: lab(37.8822% 37.1699 52.2718);
       --color-emerald-50: lab(97.8462% -6.94966 1.85487);
@@ -1097,6 +1095,10 @@
     grid-template-columns: 160px minmax(0, 1fr);
   }
 
+  .grid-cols-\[minmax\(0\,1fr\)_120px_100px_120px\] {
+    grid-template-columns: minmax(0, 1fr) 120px 100px 120px;
+  }
+
   .grid-rows-3 {
     grid-template-rows: repeat(3, minmax(0, 1fr));
   }
@@ -1718,6 +1720,10 @@
     text-align: left;
   }
 
+  .text-right {
+    text-align: right;
+  }
+
   .align-middle {
     vertical-align: middle;
   }
@@ -1840,10 +1846,6 @@
 
   .text-accent-foreground {
     color: var(--accent-foreground);
-  }
-
-  .text-amber-600 {
-    color: var(--color-amber-600);
   }
 
   .text-amber-700 {
@@ -2839,6 +2841,12 @@
   }
 
   @media (min-width: 80rem) {
+    .xl\:grid-cols-3 {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+
+  @media (min-width: 80rem) {
     .xl\:grid-cols-4 {
       grid-template-columns: repeat(4, minmax(0, 1fr));
     }
@@ -2847,6 +2855,12 @@
   @media (min-width: 80rem) {
     .xl\:grid-cols-5 {
       grid-template-columns: repeat(5, minmax(0, 1fr));
+    }
+  }
+
+  @media (min-width: 80rem) {
+    .xl\:grid-cols-\[72\%_28\%\] {
+      grid-template-columns: 72% 28%;
     }
   }
 

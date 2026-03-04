@@ -3,8 +3,11 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { WeeklyReportDashboard } from "@/components/weekly-report/weekly-report-dashboard";
+import { WeeklyReportMetrics } from "@/components/weekly-report/weekly-report-metrics";
 import { WeeklyOwnerSummary } from "@/components/weekly-report/weekly-owner-summary";
 import { WeeklyReportTable } from "@/components/weekly-report/weekly-report-table";
+import { getExecutionQuarterYearMetrics } from "@/lib/repos/execution-action-repo";
 import { buildWeeklyOwnerSummary, listWeeklyReports } from "@/lib/repos/weekly-report-repo";
 import { listCustomers, listCustomersByManager } from "@/lib/repos/customer-repo";
 import { listCustomerIdsByManager, resolveCurrentManager } from "@/lib/repos/manager-assignment-repo";
@@ -52,28 +55,20 @@ export default async function WeeklyReportsPage({
   const weekStart = parseDate(weekStartText);
   const weekEnd = parseDate(weekEndText);
 
-  const [reports, summary, customers] = await Promise.all([
+  const [reports, summary, customers, metrics] = await Promise.all([
     listWeeklyReports(weekStart, weekEnd, customerId, customerIds),
     buildWeeklyOwnerSummary(weekStart, weekEnd, customerId, customerIds),
     isSupervisorRole(role)
       ? listCustomers()
       : listCustomersByManager(managerName === "ALL" ? undefined : managerName),
+    getExecutionQuarterYearMetrics(),
   ]);
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold">周计划与执行列表</h2>
-        <Button asChild className="rounded-full px-4">
-          <Link
-            href={`/weekly-reports/new?${new URLSearchParams({
-              ...(managerName ? { managerName } : {}),
-              ...(role ? { role } : {}),
-            }).toString()}`}
-          >
-            新建周计划与执行
-          </Link>
-        </Button>
+        <p className="text-sm text-muted-foreground">周报仅支持由执行推进自动生成后编辑</p>
       </div>
 
       <form className="grid gap-4 rounded border bg-card p-4 md:grid-cols-4">
@@ -112,6 +107,24 @@ export default async function WeeklyReportsPage({
           </Button>
         </div>
       </form>
+      <WeeklyReportMetrics metrics={metrics} />
+
+      <WeeklyReportDashboard
+        rows={reports.map((item) => ({
+          id: item.id,
+          customerName: item.customerRecord?.name || "-",
+          ownerName: item.ownerName,
+          weekStart: item.weekStart,
+          weekEnd: item.weekEnd,
+          summary: item.summary,
+          threadCount: item.threadLinks.length,
+          satisfactionRiskLevel: item.satisfactionRiskLevel,
+          plannedExecutionItems: item.plannedExecutionItems,
+          executedItems: item.executedItems,
+          requiredNextActions: item.requiredNextActions,
+          nextWeekPlan: item.nextWeekPlan,
+        }))}
+      />
 
       <WeeklyOwnerSummary rows={summary} />
       <WeeklyReportTable
@@ -130,6 +143,8 @@ export default async function WeeklyReportsPage({
             keyStakeholderRecognitionResult: String(conclusions.keyStakeholderRecognitionResult || ""),
           };
         })}
+        role={role}
+        managerName={managerName}
       />
     </div>
   );

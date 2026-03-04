@@ -1,47 +1,42 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
-import { format } from "date-fns";
-import { zhCN } from "date-fns/locale";
 
+import { updateWeeklyActionStatusQuickAction } from "@/app/(dashboard)/weekly-reports/actions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { formatDateCST } from "@/lib/datetime";
 import { getWeeklyReportDetail } from "@/lib/repos/weekly-report-repo";
+import {
+  actionPriorityLabelMap,
+  deliveryRiskLabelMap,
+  executionStatusLabelMap,
+  keyStakeholderLabelMap,
+  toArray,
+  toRecord,
+  toText,
+  weeklyRiskLabelMap,
+} from "@/lib/weekly-report-view";
 
 export const dynamic = "force-dynamic";
 
-function toRecord(value: unknown): Record<string, unknown> {
-  return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
+type SearchParams = Record<string, string | string[] | undefined>;
+
+function getOne(query: string | string[] | undefined) {
+  return Array.isArray(query) ? query[0] : query;
 }
 
-function toArray(value: unknown): Array<Record<string, unknown>> {
-  return Array.isArray(value) ? (value as Array<Record<string, unknown>>) : [];
-}
-
-const riskLabelMap: Record<string, string> = {
-  HIGH_RED: "高风险（红色）",
-  MEDIUM_YELLOW: "中风险（黄色）",
-  LOW_GREEN: "低风险（绿色）",
-};
-
-const keyStakeholderLabelMap: Record<string, string> = {
-  NOT_YET_RESULT: "未出结果阶段",
-  PENDING_CONFIRMATION: "效果待确认",
-  AVERAGE_RESULT: "结果一般",
-  GOOD_RECOGNIZED: "结果好-关键人认可",
-  BAD_NOT_RECOGNIZED: "结果不好-关键人不认可",
-  NOT_APPLICABLE: "不涉及",
-};
-
-const deliveryRiskLabelMap: Record<string, string> = {
-  WORSENING: "恶化",
-  NO_CHANGE: "无变化",
-  IMPROVING: "改善",
-  SIGNIFICANT_IMPROVING: "显著改善",
-};
-
-export default async function WeeklyReportDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function WeeklyReportDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<SearchParams>;
+}) {
   const { id } = await params;
+  const query = await searchParams;
+  const managerName = getOne(query.managerName) || "";
+  const role = getOne(query.role) || "";
   const report = await getWeeklyReportDetail(id);
   if (!report) notFound();
   const objectives = toRecord(report.weeklyObjectives);
@@ -49,6 +44,34 @@ export default async function WeeklyReportDetailPage({ params }: { params: Promi
   const executedItems = toArray(report.executedItems);
   const conclusions = toRecord(report.qualitativeConclusions);
   const requiredNextActions = toArray(report.requiredNextActions);
+  const actionDiffRows = report.actionSnapshots
+    .map((snapshot) => {
+      const baselineStatus = snapshot.baselineStatus;
+      const currentStatus = snapshot.action.status;
+      const statusChanged = baselineStatus !== currentStatus;
+      const baselineDeadline = snapshot.baselineDeadlineAt?.toISOString() || "";
+      const currentDeadline = snapshot.action.deadlineAt?.toISOString() || "";
+      const deadlineChanged = baselineDeadline !== currentDeadline;
+      const becameDone = baselineStatus !== "DONE" && currentStatus === "DONE";
+      const becameBlocked = baselineStatus !== "BLOCKED" && currentStatus === "BLOCKED";
+      const becameOverdue =
+        snapshot.baselineDeadlineAt &&
+        snapshot.action.deadlineAt &&
+        snapshot.baselineDeadlineAt.getTime() >= report.weekEnd.getTime() &&
+        snapshot.action.deadlineAt.getTime() < report.weekEnd.getTime();
+      return {
+        actionId: snapshot.action.id,
+        title: snapshot.action.title,
+        baselineStatus,
+        currentStatus,
+        statusChanged,
+        deadlineChanged,
+        becameDone,
+        becameBlocked,
+        becameOverdue,
+      };
+    })
+    .filter((item) => item.statusChanged || item.deadlineChanged || item.becameDone || item.becameBlocked || item.becameOverdue);
 
   return (
     <div className="space-y-4">
@@ -58,12 +81,16 @@ export default async function WeeklyReportDetailPage({ params }: { params: Promi
           返回周计划与执行列表
         </Link>
       </Button>
+      <div className="flex justify-end">
+        <Button variant="outline" asChild>
+          <Link href={`/weekly-reports/${report.id}/edit`}>编辑周报</Link>
+        </Button>
+      </div>
       <Card>
         <CardHeader>
           <CardTitle>
             {report.customerRecord?.name || "未绑定客户"} ·{" "}
-            {report.ownerName} | {format(report.weekStart, "yyyy-MM-dd", { locale: zhCN })} ~{" "}
-            {format(report.weekEnd, "yyyy-MM-dd", { locale: zhCN })}
+            {report.ownerName} | {formatDateCST(report.weekStart)} ~ {formatDateCST(report.weekEnd)}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -81,7 +108,8 @@ export default async function WeeklyReportDetailPage({ params }: { params: Promi
               {plannedItems.length ? (
                 plannedItems.map((item, index) => (
                   <p key={`planned-${index}`} className="rounded border px-2 py-1">
-                    {String(item.title || "-")} / {String(item.type || "-")} / 状态：{String(item.status || "-")}
+                    {toText(item.title) || "-"} / 关联目标：{toText(item.linkedGoal) || "-"} / 状态：
+                    {executionStatusLabelMap[toText(item.status)] || "待执行"}
                   </p>
                 ))
               ) : (
@@ -95,12 +123,45 @@ export default async function WeeklyReportDetailPage({ params }: { params: Promi
               {executedItems.length ? (
                 executedItems.map((item, index) => (
                   <p key={`executed-${index}`} className="rounded border px-2 py-1">
-                    {String(item.executionItemId || item.title || "-")} / 状态：{String(item.status || "-")} / 结果：
-                    {String(item.resultSummary || "-")}
+                    {toText(item.title) || toText(item.executionItemId) || "-"} / 状态：
+                    {executionStatusLabelMap[toText(item.status)] || "待执行"} / 结果：
+                    {toText(item.resultSummary) || "-"}
                   </p>
                 ))
               ) : (
                 <p className="text-muted-foreground">-</p>
+              )}
+            </div>
+          </section>
+          <section>
+            <h3 className="text-sm font-semibold">本周变化（相对生成基线）</h3>
+            <div className="mt-1 space-y-1 text-sm">
+              {actionDiffRows.length ? (
+                actionDiffRows.map((row, index) => (
+                  <p key={`diff-${index}`} className="rounded border px-2 py-1">
+                    {row.title}：{executionStatusLabelMap[row.baselineStatus] || row.baselineStatus} →{" "}
+                    {executionStatusLabelMap[row.currentStatus] || row.currentStatus}
+                    {row.becameDone ? "（新增完成）" : ""}
+                    {row.becameBlocked ? "（新增阻塞）" : ""}
+                    {row.becameOverdue ? "（新增逾期）" : ""}
+                    {row.currentStatus !== "DONE" ? (
+                      <span className="ml-2 inline-flex">
+                        <form action={updateWeeklyActionStatusQuickAction}>
+                          <input type="hidden" name="weeklyReportId" value={report.id} />
+                          <input type="hidden" name="actionId" value={row.actionId} />
+                          <input type="hidden" name="nextStatus" value="DONE" />
+                          <input type="hidden" name="managerName" value={managerName} />
+                          <input type="hidden" name="role" value={role} />
+                          <button type="submit" className="text-xs text-primary underline">
+                            标记完成
+                          </button>
+                        </form>
+                      </span>
+                    ) : null}
+                  </p>
+                ))
+              ) : (
+                <p className="text-muted-foreground">本周暂无基线变化</p>
               )}
             </div>
           </section>
@@ -120,7 +181,7 @@ export default async function WeeklyReportDetailPage({ params }: { params: Promi
           </section>
           <section>
             <h3 className="text-sm font-semibold">满意度风险评估</h3>
-            <p className="mt-1 text-sm">{riskLabelMap[report.satisfactionRiskLevel || ""] || "-"}</p>
+            <p className="mt-1 text-sm">{weeklyRiskLabelMap[report.satisfactionRiskLevel || ""] || "-"}</p>
             <p className="mt-1 text-sm text-muted-foreground">{report.satisfactionRiskReason || "-"}</p>
           </section>
           <section>
@@ -134,7 +195,8 @@ export default async function WeeklyReportDetailPage({ params }: { params: Promi
               {requiredNextActions.length ? (
                 requiredNextActions.map((item, index) => (
                   <p key={`next-required-${index}`} className="rounded border px-2 py-1">
-                    {String(item.title || "-")} / 来源：{String(item.source || "-")} / 优先级：{String(item.priority || "-")}
+                    {toText(item.title) || "-"} / 优先级：
+                    {actionPriorityLabelMap[toText(item.priority)] || toText(item.priority) || "-"}
                   </p>
                 ))
               ) : null}

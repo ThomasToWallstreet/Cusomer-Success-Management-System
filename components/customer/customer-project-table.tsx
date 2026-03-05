@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { Pencil, Plus, Trash2 } from "lucide-react";
 
@@ -70,7 +70,7 @@ export function CustomerProjectTable({
             </DialogTrigger>
             <DialogContent className="max-h-[88vh] overflow-y-auto sm:max-w-4xl" data-no-drag-scroll="true">
               <DialogHeader>
-                <DialogTitle>新增项目清单</DialogTitle>
+                <DialogTitle>新增项目清单（突破/续费/复购）</DialogTitle>
                 <DialogDescription>用于新建客户成功计划时关联“经营目标-扩大收入”主数据。</DialogDescription>
               </DialogHeader>
               <CustomerProjectForm
@@ -129,7 +129,7 @@ export function CustomerProjectTable({
                           </DialogTrigger>
                           <DialogContent className="max-h-[88vh] overflow-y-auto sm:max-w-4xl" data-no-drag-scroll="true">
                             <DialogHeader>
-                              <DialogTitle>编辑项目清单</DialogTitle>
+                              <DialogTitle>编辑项目清单（突破/续费/复购）</DialogTitle>
                               <DialogDescription>更新后可在新建客户成功计划中直接关联。</DialogDescription>
                             </DialogHeader>
                             <CustomerProjectForm
@@ -170,7 +170,7 @@ export function CustomerProjectTable({
             ) : (
               <tr>
                 <td colSpan={canEdit ? 10 : 9} className="py-8 text-center text-sm text-muted-foreground">
-                  暂无项目清单数据。
+                  暂无项目清单（突破/续费/复购）数据。
                 </td>
               </tr>
             )}
@@ -180,3 +180,4 @@ export function CustomerProjectTable({
     </div>
   );
 }
+

@@ -1,4 +1,4 @@
-"use server";
+﻿"use server";
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -129,11 +129,11 @@ export async function createThreadWorkflowAction(formData: FormData) {
 
   const projectItem = await getCustomerProjectItemById(parsed.data.projectItemId);
   if (!projectItem || projectItem.customerId !== customer.id) {
-    throw new Error("所选项目清单不存在或不属于当前客户");
+    throw new Error("所选项目清单（突破/续费/复购）不存在或不属于当前客户");
   }
   const scenarioItem = await getCustomerScenarioItemById(parsed.data.scenarioItemId);
   if (!scenarioItem || scenarioItem.customerId !== customer.id) {
-    throw new Error("所选场景清单不存在或不属于当前客户");
+    throw new Error("所选关键场景清单不存在或不属于当前客户");
   }
 
   const selectedContacts = (
@@ -419,3 +419,4 @@ export async function deleteThreadAction(formData: FormData) {
     revalidatePath(`/threads/customers/${parsed.data.customerId}`);
   }
 }
+

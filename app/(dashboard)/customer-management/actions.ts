@@ -1,4 +1,4 @@
-"use server";
+﻿"use server";
 
 import { revalidatePath } from "next/cache";
 
@@ -257,7 +257,7 @@ export async function createCustomerProjectAction(formData: FormData) {
     note: formData.get("note"),
   });
   if (!parsed.success) {
-    throw new Error(parsed.error.issues[0]?.message || "新增项目清单失败");
+    throw new Error(parsed.error.issues[0]?.message || "新增项目清单（突破/续费/复购）失败");
   }
   await assertCustomerScopedPermission(formData, parsed.data.customerId);
   await createCustomerProjectItem(parsed.data);
@@ -279,11 +279,11 @@ export async function updateCustomerProjectAction(formData: FormData) {
     note: formData.get("note"),
   });
   if (!parsed.success) {
-    throw new Error(parsed.error.issues[0]?.message || "更新项目清单失败");
+    throw new Error(parsed.error.issues[0]?.message || "更新项目清单（突破/续费/复购）失败");
   }
   const existing = await getCustomerProjectItemById(parsed.data.id);
   if (!existing) {
-    throw new Error("项目清单不存在或已删除");
+    throw new Error("项目清单（突破/续费/复购）不存在或已删除");
   }
   await assertCustomerScopedPermission(formData, existing.customerId);
   await assertCustomerScopedPermission(formData, parsed.data.customerId);
@@ -297,11 +297,11 @@ export async function deleteCustomerProjectAction(formData: FormData) {
     id: formData.get("id"),
   });
   if (!parsed.success) {
-    throw new Error(parsed.error.issues[0]?.message || "删除项目清单失败");
+    throw new Error(parsed.error.issues[0]?.message || "删除项目清单（突破/续费/复购）失败");
   }
   const existing = await getCustomerProjectItemById(parsed.data.id);
   if (!existing) {
-    throw new Error("项目清单不存在或已删除");
+    throw new Error("项目清单（突破/续费/复购）不存在或已删除");
   }
   await assertCustomerScopedPermission(formData, existing.customerId);
   await deleteCustomerProjectItem(parsed.data.id);
@@ -320,7 +320,7 @@ export async function createCustomerScenarioAction(formData: FormData) {
     note: formData.get("note"),
   });
   if (!parsed.success) {
-    throw new Error(parsed.error.issues[0]?.message || "新增场景清单失败");
+    throw new Error(parsed.error.issues[0]?.message || "新增关键场景清单失败");
   }
   await assertCustomerScopedPermission(formData, parsed.data.customerId);
   await createCustomerScenarioItem(parsed.data);
@@ -340,11 +340,11 @@ export async function updateCustomerScenarioAction(formData: FormData) {
     note: formData.get("note"),
   });
   if (!parsed.success) {
-    throw new Error(parsed.error.issues[0]?.message || "更新场景清单失败");
+    throw new Error(parsed.error.issues[0]?.message || "更新关键场景清单失败");
   }
   const existing = await getCustomerScenarioItemById(parsed.data.id);
   if (!existing) {
-    throw new Error("场景清单不存在或已删除");
+    throw new Error("关键场景清单不存在或已删除");
   }
   await assertCustomerScopedPermission(formData, existing.customerId);
   await assertCustomerScopedPermission(formData, parsed.data.customerId);
@@ -358,14 +358,15 @@ export async function deleteCustomerScenarioAction(formData: FormData) {
     id: formData.get("id"),
   });
   if (!parsed.success) {
-    throw new Error(parsed.error.issues[0]?.message || "删除场景清单失败");
+    throw new Error(parsed.error.issues[0]?.message || "删除关键场景清单失败");
   }
   const existing = await getCustomerScenarioItemById(parsed.data.id);
   if (!existing) {
-    throw new Error("场景清单不存在或已删除");
+    throw new Error("关键场景清单不存在或已删除");
   }
   await assertCustomerScopedPermission(formData, existing.customerId);
   await deleteCustomerScenarioItem(parsed.data.id);
   revalidatePath("/customer-management");
   revalidatePath("/threads/new");
 }
+

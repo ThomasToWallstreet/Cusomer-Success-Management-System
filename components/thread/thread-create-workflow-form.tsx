@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useMemo, useRef, useState } from "react";
 
@@ -190,7 +190,7 @@ export function ThreadCreateWorkflowForm({
               ))}
             </div>
             <p className="mt-2 text-xs text-muted-foreground">
-              新建计划仅引用客户管理主数据：项目清单、客户关键人清单、场景清单。
+              新建计划仅引用客户管理主数据：项目清单（突破/续费/复购）、关键人清单、关键场景清单。
             </p>
           </div>
 
@@ -228,9 +228,9 @@ export function ThreadCreateWorkflowForm({
               sectionRefs.current["business-goal"] = element;
             }}
           >
-            <h3 className="font-semibold">1、经营目标-扩大收入（项目清单主数据）</h3>
+            <h3 className="font-semibold">1、经营目标-扩大收入（项目清单（突破/续费/复购）主数据）</h3>
             <div className="space-y-2">
-              <Label htmlFor="projectItemId">选择项目清单 *</Label>
+              <Label htmlFor="projectItemId">选择项目清单（突破/续费/复购） *</Label>
               <select
                 id="projectItemId"
                 name="projectItemId"
@@ -239,7 +239,7 @@ export function ThreadCreateWorkflowForm({
                 className="h-9 w-full rounded-md border bg-background px-3 text-sm"
                 required
               >
-                <option value="">请选择项目清单</option>
+                <option value="">请选择项目清单（突破/续费/复购）</option>
                 {availableProjects.map((item) => (
                   <option key={item.id} value={item.id}>
                     {item.name}
@@ -261,7 +261,7 @@ export function ThreadCreateWorkflowForm({
                 <p className="mt-2"><span className="text-muted-foreground">备注：</span>{renderValue(selectedProject.note)}</p>
               </div>
             ) : (
-              <p className="text-xs text-muted-foreground">请选择项目清单后查看主数据详情。</p>
+              <p className="text-xs text-muted-foreground">请选择项目清单（突破/续费/复购）后查看主数据详情。</p>
             )}
           </section>
 
@@ -329,9 +329,9 @@ export function ThreadCreateWorkflowForm({
               sectionRefs.current["needs-understanding"] = element;
             }}
           >
-            <h3 className="font-semibold">3、客户成功-价值兑现（场景清单主数据）</h3>
+            <h3 className="font-semibold">3、客户成功-价值兑现（关键场景清单主数据）</h3>
             <div className="space-y-2">
-              <Label htmlFor="scenarioItemId">选择场景清单 *</Label>
+              <Label htmlFor="scenarioItemId">选择关键场景清单 *</Label>
               <select
                 id="scenarioItemId"
                 name="scenarioItemId"
@@ -340,7 +340,7 @@ export function ThreadCreateWorkflowForm({
                 className="h-9 w-full rounded-md border bg-background px-3 text-sm"
                 required
               >
-                <option value="">请选择场景清单</option>
+                <option value="">请选择关键场景清单</option>
                 {availableScenarios.map((item) => (
                   <option key={item.id} value={item.id}>
                     {item.name}
@@ -360,7 +360,7 @@ export function ThreadCreateWorkflowForm({
                 <p className="mt-2"><span className="text-muted-foreground">备注：</span>{renderValue(selectedScenario.note)}</p>
               </div>
             ) : (
-              <p className="text-xs text-muted-foreground">请选择场景清单后查看主数据详情。</p>
+              <p className="text-xs text-muted-foreground">请选择关键场景清单后查看主数据详情。</p>
             )}
           </section>
 
@@ -372,3 +372,4 @@ export function ThreadCreateWorkflowForm({
     </Card>
   );
 }
+

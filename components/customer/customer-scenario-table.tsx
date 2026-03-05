@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { Pencil, Plus, Trash2 } from "lucide-react";
 
@@ -62,7 +62,7 @@ export function CustomerScenarioTable({
             </DialogTrigger>
             <DialogContent className="max-h-[88vh] overflow-y-auto sm:max-w-4xl" data-no-drag-scroll="true">
               <DialogHeader>
-                <DialogTitle>新增场景清单</DialogTitle>
+                <DialogTitle>新增关键场景清单</DialogTitle>
                 <DialogDescription>用于新建客户成功计划时关联“客户成功-价值兑现”主数据。</DialogDescription>
               </DialogHeader>
               <CustomerScenarioForm
@@ -117,7 +117,7 @@ export function CustomerScenarioTable({
                           </DialogTrigger>
                           <DialogContent className="max-h-[88vh] overflow-y-auto sm:max-w-4xl" data-no-drag-scroll="true">
                             <DialogHeader>
-                              <DialogTitle>编辑场景清单</DialogTitle>
+                              <DialogTitle>编辑关键场景清单</DialogTitle>
                               <DialogDescription>更新后可在新建客户成功计划中直接关联。</DialogDescription>
                             </DialogHeader>
                             <CustomerScenarioForm
@@ -156,7 +156,7 @@ export function CustomerScenarioTable({
             ) : (
               <tr>
                 <td colSpan={canEdit ? 8 : 7} className="py-8 text-center text-sm text-muted-foreground">
-                  暂无场景清单数据。
+                  暂无关键场景清单数据。
                 </td>
               </tr>
             )}
@@ -166,3 +166,4 @@ export function CustomerScenarioTable({
     </div>
   );
 }
+

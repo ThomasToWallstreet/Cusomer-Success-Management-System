@@ -1,4 +1,4 @@
-import { z } from "zod";
+﻿import { z } from "zod";
 import { businessStageValues } from "@/lib/constants/domain";
 
 export const createThreadSchema = z.object({
@@ -20,9 +20,9 @@ export const createThreadWorkflowSchema = z.object({
   role: z.string().optional(),
   managerName: z.string().optional(),
   customerId: z.string().min(1, "请选择客户"),
-  projectItemId: z.string().min(1, "请选择项目清单"),
+  projectItemId: z.string().min(1, "请选择项目清单（突破/续费/复购）"),
   contactIds: z.array(z.string().min(1)).min(1, "请至少选择一个关键人"),
-  scenarioItemId: z.string().min(1, "请选择场景清单"),
+  scenarioItemId: z.string().min(1, "请选择关键场景清单"),
 });
 
 export const updateThreadMetaSchema = z.object({
@@ -74,3 +74,4 @@ export const deleteThreadSchema = z.object({
   role: z.string().optional(),
   customerId: z.string().optional(),
 });
+

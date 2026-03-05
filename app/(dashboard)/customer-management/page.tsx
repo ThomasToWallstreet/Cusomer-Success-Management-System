@@ -1,4 +1,4 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 
 import { AssignmentTable } from "@/components/customer/assignment-table";
 import { CustomerContactTable } from "@/components/customer/customer-contact-table";
@@ -101,19 +101,19 @@ export default async function CustomerManagementPage({
           href={contactTabHref}
           className={`rounded-full border px-4 py-1.5 text-sm transition-colors ${tab === "contacts" ? "border-primary bg-primary/10 font-medium text-foreground" : "text-muted-foreground hover:bg-muted/30"}`}
         >
-          客户关键人清单
+          关键人清单
         </Link>
         <Link
           href={projectTabHref}
           className={`rounded-full border px-4 py-1.5 text-sm transition-colors ${tab === "projects" ? "border-primary bg-primary/10 font-medium text-foreground" : "text-muted-foreground hover:bg-muted/30"}`}
         >
-          项目清单
+          项目清单（突破/续费/复购）
         </Link>
         <Link
           href={scenarioTabHref}
           className={`rounded-full border px-4 py-1.5 text-sm transition-colors ${tab === "scenarios" ? "border-primary bg-primary/10 font-medium text-foreground" : "text-muted-foreground hover:bg-muted/30"}`}
         >
-          场景清单
+          关键场景清单
         </Link>
       </div>
 
@@ -150,3 +150,4 @@ export default async function CustomerManagementPage({
     </div>
   );
 }
+

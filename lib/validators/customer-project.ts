@@ -75,5 +75,29 @@ export const deleteCustomerProjectSchema = z.object({
   id: normalizeRequiredText("项目ID"),
 });
 
+function normalizeRequiredDateTime(label: string) {
+  return z.preprocess((value) => {
+    if (typeof value !== "string") return undefined;
+    const raw = value.trim();
+    if (!raw) return undefined;
+    const matched = raw.match(/^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})$/);
+    if (!matched) return undefined;
+    const date = new Date(`${matched[1]}T${matched[2]}:00+08:00`);
+    if (Number.isNaN(date.getTime())) return undefined;
+    return date;
+  }, z.date({
+    invalid_type_error: `${label}格式不正确`,
+    required_error: `${label}不能为空`,
+  }));
+}
+
+export const updateCustomerProjectBusinessGoalSchema = z.object({
+  id: normalizeRequiredText("项目ID"),
+  businessGoalAchieved: z.enum(businessGoalResultOptions, { message: "经营目标是否达成非法" }),
+  businessGoalUpdatedAt: normalizeRequiredDateTime("达成更新时间"),
+  businessGoalEvidence: normalizeRequiredText("更新举证", 1000),
+});
+
 export type CreateCustomerProjectInput = z.infer<typeof createCustomerProjectSchema>;
 export type UpdateCustomerProjectInput = z.infer<typeof updateCustomerProjectSchema>;
+export type UpdateCustomerProjectBusinessGoalInput = z.infer<typeof updateCustomerProjectBusinessGoalSchema>;

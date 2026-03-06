@@ -7,6 +7,7 @@ import { RiskBadge } from "@/components/shared/risk-badge";
 import { StageStatusBadge } from "@/components/shared/stage-status-badge";
 import { Button } from "@/components/ui/button";
 import { buildThreadExecutionSummary } from "@/lib/execution-progress";
+import { listCustomerContacts } from "@/lib/repos/customer-contact-repo";
 import { ensureCustomerGoalWeeklySnapshot } from "@/lib/repos/customer-goal-weekly-snapshot-repo";
 import { getCustomerById } from "@/lib/repos/customer-repo";
 import { listCustomerIdsByManager, resolveCurrentManager } from "@/lib/repos/manager-assignment-repo";
@@ -42,6 +43,17 @@ function formatBooleanOrText(value: unknown, trueLabel = "是", falseLabel = "�
 
 function toText(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
+}
+
+function extractContactIds(orgSection: Record<string, unknown>) {
+  const list = Array.isArray(orgSection.contactMasterSnapshotList)
+    ? (orgSection.contactMasterSnapshotList as Array<Record<string, unknown>>)
+    : [];
+  const fromList = list
+    .map((item) => (typeof item.id === "string" ? item.id.trim() : ""))
+    .filter(Boolean);
+  const single = toText(toRecord(orgSection.contactMasterSnapshot).id);
+  return [...new Set([...fromList, ...(single ? [single] : [])])];
 }
 
 function DetailRow({ label, value }: { label: string; value: string }) {
@@ -116,10 +128,56 @@ export default async function CustomerPlanDetailPage({
   const org = toRecord(selected.orgSection);
   const success = toRecord(selected.successSection);
   const basic = toRecord(selected.activitySection);
-  const stakeholders = Array.isArray(org.stakeholders) ? (org.stakeholders as Array<Record<string, unknown>>) : [];
+  const customerContacts = await listCustomerContacts({ customerId });
+  const selectedContactIds = extractContactIds(org);
+  const selectedContacts = selectedContactIds.length
+    ? customerContacts.filter((contact) => selectedContactIds.includes(contact.id))
+    : customerContacts;
+  const satisfactionTargetSummary = selectedContacts.length
+    ? [...new Set(selectedContacts.map((item) => item.satisfactionTarget || "-"))].join("、")
+    : "-";
+  const satisfactionCurrentSummary = selectedContacts.length
+    ? [...new Set(selectedContacts.map((item) => item.satisfactionCurrent || "-"))].join("、")
+    : "-";
+  const latestSatisfactionUpdate =
+    selectedContacts
+      .filter((item) => item.satisfactionUpdatedAt)
+      .sort((a, b) => (b.satisfactionUpdatedAt?.getTime() || 0) - (a.satisfactionUpdatedAt?.getTime() || 0))[0] || null;
+  const changeSummary = latestSatisfactionUpdate
+    ? `最近更新：${formatDateTimeCST(latestSatisfactionUpdate.satisfactionUpdatedAt as Date)}`
+    : "-";
+  const changeDetails = selectedContacts
+    .flatMap((item) =>
+      (item.satisfactionHistories || []).map((history) => (
+        `${item.name}｜${history.satisfactionCurrent}｜${formatDateTimeCST(history.satisfactionUpdatedAt)}｜${history.satisfactionEvidence}`
+      )),
+    )
+    .slice(0, 12);
   const selectedBusinessGoalAchieved = toText(goal.businessGoalAchieved) || "-";
+  const businessGoalChangeDetails = Array.isArray(goal.businessGoalHistory)
+    ? (goal.businessGoalHistory as Array<Record<string, unknown>>)
+        .map((item) => {
+          const status = toText(item.businessGoalAchieved) || "-";
+          const updatedAt = toText(item.businessGoalUpdatedAt);
+          const evidence = toText(item.businessGoalEvidence) || "-";
+          const timeText = updatedAt ? formatDateTimeCST(updatedAt) : "-";
+          return `${status}｜${timeText}｜${evidence}`;
+        })
+        .slice(0, 12)
+    : [];
   const selectedOrgChanges = toText(org.orgChanges) || "-";
   const selectedAlignedWithCustomer = formatBooleanOrText(success.alignedWithCustomer);
+  const alignmentChangeDetails = Array.isArray(success.alignmentHistory)
+    ? (success.alignmentHistory as Array<Record<string, unknown>>)
+        .map((item) => {
+          const status = toText(item.alignedWithCustomer) || "-";
+          const updatedAt = toText(item.alignedUpdatedAt);
+          const evidence = toText(item.alignedEvidence) || "-";
+          const timeText = updatedAt ? formatDateTimeCST(updatedAt) : "-";
+          return `${status}｜${timeText}｜${evidence}`;
+        })
+        .slice(0, 12)
+    : [];
   const executionSummary = buildThreadExecutionSummary({
     threadId: selected.id,
     customerName: customer.name,
@@ -219,7 +277,7 @@ export default async function CustomerPlanDetailPage({
               <h3 className="text-base font-semibold">关键场景详情面板</h3>
               <p className="text-xs text-muted-foreground"></p>
             </div>
-            <Button variant="outline" size="sm" asChild>
+            <Button size="sm" className="bg-black text-white hover:bg-black/90" asChild>
               <Link href={`/threads/${selected.id}`}>进入工作流</Link>
             </Button>
           </div>
@@ -253,27 +311,28 @@ export default async function CustomerPlanDetailPage({
                   value={selectedBusinessGoalAchieved}
                   tone={getBusinessGoalTone(selectedBusinessGoalAchieved)}
                 />
+                <DetailRow label="变化情况（明细）" value={businessGoalChangeDetails.join("\n") || "-"} />
               </div>
             </section>
             <section className="rounded-md border p-3">
               <h4 className="mb-3 text-sm font-semibold">客户成功-组织关系</h4>
               <div className="space-y-2">
-                <DetailRow label="满意度现状" value={String(org.orgCurrentState || "-")} />
-                <DetailBadgeRow
+                <DetailRow label="满意度目标" value={satisfactionTargetSummary} />
+                <DetailRow label="满意度现状" value={satisfactionCurrentSummary} />
+                <DetailRow
                   label="变化情况"
-                  value={selectedOrgChanges}
-                  tone={getOrgCurrentTone(selectedOrgChanges)}
+                  value={changeSummary === "-" ? selectedOrgChanges : changeSummary}
                 />
+                <DetailRow label="变化情况（明细）" value={changeDetails.join("\n") || "-"} />
               </div>
               <div className="mt-3 space-y-2">
                 <p className="text-xs text-muted-foreground">关键人条目</p>
-                {stakeholders.length ? (
-                  stakeholders.map((person, idx) => (
-                    <div key={`stakeholder-${idx}`} className="rounded-md border bg-muted/20 p-2">
+                {selectedContacts.length ? (
+                  selectedContacts.map((person) => (
+                    <div key={person.id} className="rounded-md border bg-muted/20 p-2">
                       <p className="text-sm font-medium">
                         {String(person.name || "-")} · {String(person.department || "-")} · {String(person.level || "-")}
                       </p>
-                      <p className="text-xs text-muted-foreground">{String(person.description || "-")}</p>
                     </div>
                   ))
                 ) : (
@@ -305,6 +364,7 @@ export default async function CustomerPlanDetailPage({
                   value={selectedAlignedWithCustomer}
                   tone={getAlignedTone(selectedAlignedWithCustomer)}
                 />
+                <DetailRow label="变化情况（明细）" value={alignmentChangeDetails.join("\n") || "-"} />
               </div>
             </section>
           </div>

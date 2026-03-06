@@ -1,5 +1,9 @@
 import { prisma } from "@/lib/db";
-import type { CreateCustomerContactInput, UpdateCustomerContactInput } from "@/lib/validators/customer-contact";
+import type {
+  CreateCustomerContactInput,
+  UpdateCustomerContactInput,
+  UpdateCustomerContactSatisfactionInput,
+} from "@/lib/validators/customer-contact";
 
 function toNullable(value?: string) {
   return value ?? null;
@@ -33,6 +37,9 @@ export async function listCustomerContacts(scope?: { customerIds?: string[]; cus
       customer: {
         select: { id: true, name: true },
       },
+      satisfactionHistories: {
+        orderBy: [{ satisfactionUpdatedAt: "desc" }, { createdAt: "desc" }],
+      },
     },
     orderBy: [{ customer: { name: "asc" } }, { name: "asc" }],
   });
@@ -52,6 +59,20 @@ export async function listCustomerContactsByCustomerIds(customerIds: string[]) {
       satisfactionTarget: true,
     },
     orderBy: [{ customerId: "asc" }, { name: "asc" }],
+  });
+}
+
+export async function listCustomerContactsByIds(ids: string[]) {
+  if (!ids.length) return [];
+  return prisma.customerContact.findMany({
+    where: {
+      id: { in: ids },
+    },
+    include: {
+      customer: {
+        select: { id: true, name: true },
+      },
+    },
   });
 }
 
@@ -92,6 +113,28 @@ export async function updateCustomerContact(input: UpdateCustomerContactInput) {
       satisfactionTarget: input.satisfactionTarget,
       note: toNullable(input.note),
     },
+  });
+}
+
+export async function updateCustomerContactSatisfaction(input: UpdateCustomerContactSatisfactionInput) {
+  return prisma.$transaction(async (tx) => {
+    const updated = await tx.customerContact.update({
+      where: { id: input.id },
+      data: {
+        satisfactionCurrent: input.satisfactionCurrent,
+        satisfactionUpdatedAt: input.satisfactionUpdatedAt,
+        satisfactionEvidence: input.satisfactionEvidence,
+      },
+    });
+    await tx.customerContactSatisfactionHistory.create({
+      data: {
+        contactId: input.id,
+        satisfactionCurrent: input.satisfactionCurrent,
+        satisfactionUpdatedAt: input.satisfactionUpdatedAt,
+        satisfactionEvidence: input.satisfactionEvidence,
+      },
+    });
+    return updated;
   });
 }
 

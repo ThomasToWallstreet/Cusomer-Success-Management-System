@@ -1,10 +1,11 @@
 "use client";
 
-import { Pencil, Plus, Trash2 } from "lucide-react";
+import { History, Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
 
 import {
   createCustomerContactAction,
   deleteCustomerContactAction,
+  updateCustomerContactSatisfactionAction,
   updateCustomerContactAction,
 } from "@/app/(dashboard)/customer-management/actions";
 import { CustomerContactForm } from "@/components/customer/customer-contact-form";
@@ -18,6 +19,10 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { formatDateTimeCST } from "@/lib/datetime";
 
 type ContactRow = {
   id: string;
@@ -28,14 +33,40 @@ type ContactRow = {
   level: string | null;
   satisfactionCurrent: string;
   satisfactionTarget: string;
+  satisfactionUpdatedAt: Date | string | null;
+  satisfactionEvidence: string | null;
+  satisfactionHistories?: Array<{
+    id: string;
+    satisfactionCurrent: string;
+    satisfactionUpdatedAt: Date | string;
+    satisfactionEvidence: string;
+    createdAt: Date | string;
+  }>;
   note: string | null;
-  updatedAt: Date;
+  updatedAt: Date | string;
 };
 
 type CustomerOption = {
   id: string;
   name: string;
 };
+
+function toDateTimeLocalValue(value?: Date | string | null) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const parts = new Intl.DateTimeFormat("zh-CN", {
+    timeZone: "Asia/Shanghai",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(date);
+  const get = (type: Intl.DateTimeFormatPartTypes) => parts.find((part) => part.type === type)?.value || "";
+  return `${get("year")}-${get("month")}-${get("day")}T${get("hour")}:${get("minute")}`;
+}
 
 export function CustomerContactTable({
   rows,
@@ -103,7 +134,94 @@ export function CustomerContactTable({
                   <td className="font-medium">{row.name}</td>
                   <td>{row.department || "-"}</td>
                   <td>{row.level || "-"}</td>
-                  <td>{row.satisfactionCurrent || "-"}</td>
+                  <td>
+                    <div className="flex flex-col items-center gap-1">
+                      <div className="flex items-center justify-center gap-2">
+                        <span>{row.satisfactionCurrent || "-"}</span>
+                        {canEdit ? (
+                          <Dialog>
+                            <DialogTrigger asChild>
+                              <Button type="button" variant="ghost" size="icon" data-no-drag-scroll="true" aria-label="更新满意度现状">
+                                <RefreshCw className="h-4 w-4" />
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent className="sm:max-w-lg" data-no-drag-scroll="true">
+                              <DialogHeader>
+                                <DialogTitle>更新满意度现状</DialogTitle>
+                                <DialogDescription>更新后将全局生效，并同步展示到客户成功-组织关系。</DialogDescription>
+                              </DialogHeader>
+                              <form action={updateCustomerContactSatisfactionAction} className="space-y-3">
+                                <input type="hidden" name="id" value={row.id} />
+                                <input type="hidden" name="role" value={role} />
+                                <input type="hidden" name="managerName" value={managerName || ""} />
+                                <div className="space-y-2">
+                                  <Label htmlFor={`satisfaction-current-${row.id}`}>满意度现状</Label>
+                                  <select
+                                    id={`satisfaction-current-${row.id}`}
+                                    name="satisfactionCurrent"
+                                    defaultValue={row.satisfactionCurrent || "无感知"}
+                                    className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+                                    required
+                                  >
+                                    <option value="认可">认可</option>
+                                    <option value="一般">一般</option>
+                                    <option value="无感知">无感知</option>
+                                    <option value="不满意">不满意</option>
+                                  </select>
+                                </div>
+                                <div className="space-y-2">
+                                  <Label htmlFor={`satisfaction-updated-at-${row.id}`}>满意度更新时间</Label>
+                                  <Input
+                                    id={`satisfaction-updated-at-${row.id}`}
+                                    name="satisfactionUpdatedAt"
+                                    type="datetime-local"
+                                    defaultValue={toDateTimeLocalValue(row.satisfactionUpdatedAt)}
+                                    required
+                                  />
+                                </div>
+                                <div className="space-y-2">
+                                  <Label htmlFor={`satisfaction-evidence-${row.id}`}>更新举证</Label>
+                                  <Textarea
+                                    id={`satisfaction-evidence-${row.id}`}
+                                    name="satisfactionEvidence"
+                                    rows={3}
+                                    defaultValue={row.satisfactionEvidence || ""}
+                                    required
+                                  />
+                                </div>
+                                <div className="rounded-md border bg-muted/20 p-3">
+                                  <p className="mb-2 flex items-center gap-1 text-xs font-medium text-muted-foreground">
+                                    <History className="h-3.5 w-3.5" />
+                                    历史记录
+                                  </p>
+                                  <div className="max-h-40 space-y-2 overflow-y-auto pr-1">
+                                    {(row.satisfactionHistories || []).length ? (
+                                      (row.satisfactionHistories || []).map((history) => (
+                                        <div key={history.id} className="rounded border bg-background px-2 py-1.5 text-xs">
+                                          <p>
+                                            现状：{history.satisfactionCurrent} ｜ 时间：{formatDateTimeCST(history.satisfactionUpdatedAt)}
+                                          </p>
+                                          <p className="text-muted-foreground">举证：{history.satisfactionEvidence}</p>
+                                        </div>
+                                      ))
+                                    ) : (
+                                      <p className="text-xs text-muted-foreground">暂无历史记录</p>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="flex justify-end">
+                                  <Button type="submit">保存更新</Button>
+                                </div>
+                              </form>
+                            </DialogContent>
+                          </Dialog>
+                        ) : null}
+                      </div>
+                      <p className="text-[11px] text-muted-foreground">
+                        更新时间：{row.satisfactionUpdatedAt ? formatDateTimeCST(row.satisfactionUpdatedAt) : "-"}
+                      </p>
+                    </div>
+                  </td>
                   <td>{row.satisfactionTarget || "-"}</td>
                   <td title={row.note || "-"} className="max-w-[280px] whitespace-pre-wrap break-words text-left align-top">
                     {row.note || "-"}

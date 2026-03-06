@@ -22,6 +22,26 @@ function toAligned(value: unknown): string {
   return toText(value);
 }
 
+const SATISFACTION_SCORE: Record<string, number> = {
+  认可: 3,
+  一般: 2,
+  无感知: 1,
+  不满意: 0,
+};
+
+export function deriveOrgChangesFromSatisfactionStates(states: string[]): string {
+  const scores = states
+    .map((state) => SATISFACTION_SCORE[state] ?? NaN)
+    .filter((score) => Number.isFinite(score));
+  if (!scores.length) return "-";
+  const avg = scores.reduce((sum, item) => sum + item, 0) / scores.length;
+  if (avg >= 2.6) return "提升至充分信赖";
+  if (avg >= 2.1) return "提升至信任支持";
+  if (avg >= 1.4) return "无变化";
+  if (avg >= 0.7) return "下降至不够满意";
+  return "下降至严重不满";
+}
+
 export function getBusinessGoalTone(value: string): Tone {
   if (!value || value === "-") return "NEUTRAL";
   if (["复购已下单", "续费已达成", "突破业务价值已兑现"].includes(value)) return "GREEN";
@@ -76,7 +96,17 @@ export function getScenarioGoalProgress(scenario: ScenarioLike): ScenarioGoalPro
   const success = toRecord(scenario.successSection);
 
   const businessGoalAchieved = toText(goal.businessGoalAchieved) || "-";
-  const orgChanges = toText(org.orgChanges) || "-";
+  const stakeholderStates = Array.isArray(org.stakeholders)
+    ? (org.stakeholders as Array<Record<string, unknown>>)
+        .map((item) => toText(item.currentState))
+        .filter(Boolean)
+    : [];
+  const snapshotStates = Array.isArray(org.contactMasterSnapshotList)
+    ? (org.contactMasterSnapshotList as Array<Record<string, unknown>>)
+        .map((item) => toText(item.satisfactionCurrent))
+        .filter(Boolean)
+    : [];
+  const orgChanges = toText(org.orgChanges) || deriveOrgChangesFromSatisfactionStates([...stakeholderStates, ...snapshotStates]);
   const orgCurrentState = toText(org.orgCurrentState) || "-";
   const alignedWithCustomer = toAligned(success.alignedWithCustomer) || "-";
 

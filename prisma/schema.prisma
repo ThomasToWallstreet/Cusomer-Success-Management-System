@@ -80,15 +80,30 @@ model CustomerContact {
   level               String?
   satisfactionCurrent String   @default("无感知")
   satisfactionTarget  String   @default("认可")
+  satisfactionUpdatedAt DateTime?
+  satisfactionEvidence String?
   note                String?
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
   customer            Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  satisfactionHistories CustomerContactSatisfactionHistory[]
   scenarios           KeySuccessScenario[]
 
   @@unique([customerId, name])
   @@index([customerId])
   @@index([customerId, satisfactionCurrent])
+}
+
+model CustomerContactSatisfactionHistory {
+  id                  String          @id @default(cuid())
+  contactId           String
+  satisfactionCurrent String
+  satisfactionUpdatedAt DateTime
+  satisfactionEvidence String
+  createdAt           DateTime        @default(now())
+  contact             CustomerContact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@index([contactId, satisfactionUpdatedAt])
 }
 
 model CustomerProjectItem {
@@ -100,15 +115,30 @@ model CustomerProjectItem {
   targetDescription    String?
   businessStage        String?
   businessGoalAchieved String?
+  businessGoalUpdatedAt DateTime?
+  businessGoalEvidence String?
   keyScenarioDescription String?
   note                 String?
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
   customer             Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  businessGoalHistories CustomerProjectBusinessGoalHistory[]
   scenarios            KeySuccessScenario[]
 
   @@unique([customerId, name])
   @@index([customerId])
+}
+
+model CustomerProjectBusinessGoalHistory {
+  id                   String              @id @default(cuid())
+  projectItemId        String
+  businessGoalAchieved String
+  businessGoalUpdatedAt DateTime
+  businessGoalEvidence String
+  createdAt            DateTime            @default(now())
+  projectItem          CustomerProjectItem @relation(fields: [projectItemId], references: [id], onDelete: Cascade)
+
+  @@index([projectItemId, businessGoalUpdatedAt])
 }
 
 model CustomerScenarioItem {
@@ -119,14 +149,29 @@ model CustomerScenarioItem {
   personalNeeds        String?
   smartGoal            String?
   alignedWithCustomer  String?
+  alignedUpdatedAt     DateTime?
+  alignedEvidence      String?
   note                 String?
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
   customer             Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  alignmentHistories   CustomerScenarioAlignmentHistory[]
   scenarios            KeySuccessScenario[]
 
   @@unique([customerId, name])
   @@index([customerId])
+}
+
+model CustomerScenarioAlignmentHistory {
+  id                String               @id @default(cuid())
+  scenarioItemId    String
+  alignedWithCustomer String
+  alignedUpdatedAt  DateTime
+  alignedEvidence   String
+  createdAt         DateTime             @default(now())
+  scenarioItem      CustomerScenarioItem @relation(fields: [scenarioItemId], references: [id], onDelete: Cascade)
+
+  @@index([scenarioItemId, alignedUpdatedAt])
 }
 
 model ManagerCustomerAssignment {

@@ -93,17 +93,30 @@ export function CustomerContactForm({
       <div className="grid gap-3 md:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor={`${mode}-contact-current`}>满意度现状</Label>
-          <select
-            id={`${mode}-contact-current`}
-            name="satisfactionCurrent"
-            defaultValue={defaultValues?.satisfactionCurrent || "无感知"}
-            className="h-9 w-full rounded-md border bg-background px-3 text-sm"
-          >
-            <option value="认可">认可</option>
-            <option value="一般">一般</option>
-            <option value="无感知">无感知</option>
-            <option value="不满意">不满意</option>
-          </select>
+          {mode === "edit" ? (
+            <>
+              <Input
+                id={`${mode}-contact-current`}
+                value={defaultValues?.satisfactionCurrent || "无感知"}
+                readOnly
+                className="h-9 w-full rounded-md border bg-muted/30 px-3 text-sm"
+              />
+              <input type="hidden" name="satisfactionCurrent" value={defaultValues?.satisfactionCurrent || "无感知"} />
+              <p className="text-xs text-muted-foreground">请使用“满意度现状”列右侧更新图标进行增量更新并保留历史。</p>
+            </>
+          ) : (
+            <select
+              id={`${mode}-contact-current`}
+              name="satisfactionCurrent"
+              defaultValue={defaultValues?.satisfactionCurrent || "无感知"}
+              className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+            >
+              <option value="认可">认可</option>
+              <option value="一般">一般</option>
+              <option value="无感知">无感知</option>
+              <option value="不满意">不满意</option>
+            </select>
+          )}
         </div>
         <div className="space-y-2">
           <Label htmlFor={`${mode}-contact-target`}>满意度目标</Label>

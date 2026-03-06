@@ -1,10 +1,11 @@
 ﻿"use client";
 
-import { Pencil, Plus, Trash2 } from "lucide-react";
+import { History, Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
 
 import {
   createCustomerScenarioAction,
   deleteCustomerScenarioAction,
+  updateCustomerScenarioAlignmentAction,
   updateCustomerScenarioAction,
 } from "@/app/(dashboard)/customer-management/actions";
 import { CustomerScenarioForm } from "@/components/customer/customer-scenario-form";
@@ -18,6 +19,10 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { formatDateTimeCST } from "@/lib/datetime";
 
 type ScenarioRow = {
   id: string;
@@ -28,6 +33,15 @@ type ScenarioRow = {
   personalNeeds: string | null;
   smartGoal: string | null;
   alignedWithCustomer: string | null;
+  alignedUpdatedAt: Date | string | null;
+  alignedEvidence: string | null;
+  alignmentHistories?: Array<{
+    id: string;
+    alignedWithCustomer: string;
+    alignedUpdatedAt: Date | string;
+    alignedEvidence: string;
+    createdAt: Date | string;
+  }>;
   note: string | null;
 };
 
@@ -35,6 +49,23 @@ type CustomerOption = {
   id: string;
   name: string;
 };
+
+function toDateTimeLocalValue(value?: Date | string | null) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const parts = new Intl.DateTimeFormat("zh-CN", {
+    timeZone: "Asia/Shanghai",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(date);
+  const get = (type: Intl.DateTimeFormatPartTypes) => parts.find((part) => part.type === type)?.value || "";
+  return `${get("year")}-${get("month")}-${get("day")}T${get("hour")}:${get("minute")}`;
+}
 
 export function CustomerScenarioTable({
   rows,
@@ -104,7 +135,93 @@ export function CustomerScenarioTable({
                   <td className="max-w-[220px] whitespace-pre-wrap break-words text-left align-top">{row.businessNeedAnalysis || "-"}</td>
                   <td className="max-w-[220px] whitespace-pre-wrap break-words text-left align-top">{row.personalNeeds || "-"}</td>
                   <td className="max-w-[220px] whitespace-pre-wrap break-words text-left align-top">{row.smartGoal || "-"}</td>
-                  <td>{row.alignedWithCustomer || "-"}</td>
+                  <td>
+                    <div className="flex flex-col items-center gap-1">
+                      <div className="flex items-center gap-2">
+                        <span>{row.alignedWithCustomer || "-"}</span>
+                        {canEdit ? (
+                          <Dialog>
+                            <DialogTrigger asChild>
+                              <Button type="button" variant="ghost" size="icon" data-no-drag-scroll="true" aria-label="更新是否与客户完成对齐">
+                                <RefreshCw className="h-4 w-4" />
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent className="sm:max-w-lg" data-no-drag-scroll="true">
+                              <DialogHeader>
+                                <DialogTitle>更新是否与客户完成对齐</DialogTitle>
+                                <DialogDescription>更新后将全局生效，并同步展示到客户成功计划详情。</DialogDescription>
+                              </DialogHeader>
+                              <form action={updateCustomerScenarioAlignmentAction} className="space-y-3">
+                                <input type="hidden" name="id" value={row.id} />
+                                <input type="hidden" name="role" value={role} />
+                                <input type="hidden" name="managerName" value={managerName || ""} />
+                                <div className="space-y-2">
+                                  <Label htmlFor={`aligned-with-customer-${row.id}`}>是否与客户完成对齐</Label>
+                                  <select
+                                    id={`aligned-with-customer-${row.id}`}
+                                    name="alignedWithCustomer"
+                                    defaultValue={row.alignedWithCustomer || "否-未对齐"}
+                                    className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+                                    required
+                                  >
+                                    <option value="是-充分对齐">是-充分对齐</option>
+                                    <option value="是-部分对齐">是-部分对齐</option>
+                                    <option value="否-未对齐">否-未对齐</option>
+                                  </select>
+                                </div>
+                                <div className="space-y-2">
+                                  <Label htmlFor={`aligned-updated-at-${row.id}`}>对齐更新时间</Label>
+                                  <Input
+                                    id={`aligned-updated-at-${row.id}`}
+                                    name="alignedUpdatedAt"
+                                    type="datetime-local"
+                                    defaultValue={toDateTimeLocalValue(row.alignedUpdatedAt)}
+                                    required
+                                  />
+                                </div>
+                                <div className="space-y-2">
+                                  <Label htmlFor={`aligned-evidence-${row.id}`}>更新举证</Label>
+                                  <Textarea
+                                    id={`aligned-evidence-${row.id}`}
+                                    name="alignedEvidence"
+                                    rows={3}
+                                    defaultValue={row.alignedEvidence || ""}
+                                    required
+                                  />
+                                </div>
+                                <div className="rounded-md border bg-muted/20 p-3">
+                                  <p className="mb-2 flex items-center gap-1 text-xs font-medium text-muted-foreground">
+                                    <History className="h-3.5 w-3.5" />
+                                    历史记录
+                                  </p>
+                                  <div className="max-h-40 space-y-2 overflow-y-auto pr-1">
+                                    {(row.alignmentHistories || []).length ? (
+                                      (row.alignmentHistories || []).map((history) => (
+                                        <div key={history.id} className="rounded border bg-background px-2 py-1.5 text-xs">
+                                          <p>
+                                            结果：{history.alignedWithCustomer} ｜ 时间：{formatDateTimeCST(history.alignedUpdatedAt)}
+                                          </p>
+                                          <p className="text-muted-foreground">举证：{history.alignedEvidence}</p>
+                                        </div>
+                                      ))
+                                    ) : (
+                                      <p className="text-xs text-muted-foreground">暂无历史记录</p>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="flex justify-end">
+                                  <Button type="submit">保存更新</Button>
+                                </div>
+                              </form>
+                            </DialogContent>
+                          </Dialog>
+                        ) : null}
+                      </div>
+                      <p className="text-[11px] text-muted-foreground">
+                        更新时间：{row.alignedUpdatedAt ? formatDateTimeCST(row.alignedUpdatedAt) : "-"}
+                      </p>
+                    </div>
+                  </td>
                   <td className="max-w-[220px] whitespace-pre-wrap break-words text-left align-top">{row.note || "-"}</td>
                   {canEdit ? (
                     <td>

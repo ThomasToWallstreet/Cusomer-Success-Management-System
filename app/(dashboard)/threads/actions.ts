@@ -200,6 +200,8 @@ export async function createThreadWorkflowAction(formData: FormData) {
       targetDescription: projectItem.targetDescription,
       businessStage: projectItem.businessStage,
       businessGoalAchieved: projectItem.businessGoalAchieved,
+      businessGoalUpdatedAt: projectItem.businessGoalUpdatedAt,
+      businessGoalEvidence: projectItem.businessGoalEvidence,
       projectMasterSnapshot: {
         id: projectItem.id,
         name: projectItem.name,
@@ -208,6 +210,8 @@ export async function createThreadWorkflowAction(formData: FormData) {
         targetDescription: projectItem.targetDescription,
         businessStage: projectItem.businessStage,
         businessGoalAchieved: projectItem.businessGoalAchieved,
+        businessGoalUpdatedAt: projectItem.businessGoalUpdatedAt,
+        businessGoalEvidence: projectItem.businessGoalEvidence,
       },
     },
     orgSection: {
@@ -229,6 +233,8 @@ export async function createThreadWorkflowAction(formData: FormData) {
       personalNeeds: scenarioItem.personalNeeds,
       smartGoal: scenarioItem.smartGoal,
       alignedWithCustomer: scenarioItem.alignedWithCustomer,
+      alignedUpdatedAt: scenarioItem.alignedUpdatedAt,
+      alignedEvidence: scenarioItem.alignedEvidence,
       scenarioMasterSnapshot: {
         id: scenarioItem.id,
         name: scenarioItem.name,
@@ -236,6 +242,8 @@ export async function createThreadWorkflowAction(formData: FormData) {
         personalNeeds: scenarioItem.personalNeeds,
         smartGoal: scenarioItem.smartGoal,
         alignedWithCustomer: scenarioItem.alignedWithCustomer,
+        alignedUpdatedAt: scenarioItem.alignedUpdatedAt,
+        alignedEvidence: scenarioItem.alignedEvidence,
       },
     },
     activitySection: {

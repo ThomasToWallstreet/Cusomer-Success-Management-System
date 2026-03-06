@@ -110,19 +110,32 @@ export function CustomerScenarioForm({
 
       <div className="space-y-2">
         <Label htmlFor={`${mode}-aligned`}>是否与客户完成对齐</Label>
-        <select
-          id={`${mode}-aligned`}
-          name="alignedWithCustomer"
-          defaultValue={textOrEmpty(defaultValues?.alignedWithCustomer)}
-          className="h-9 w-full rounded-md border bg-background px-3 text-sm"
-        >
-          <option value="">请选择</option>
-          {alignedWithCustomerOptions.map((option) => (
-            <option key={option} value={option}>
-              {option}
-            </option>
-          ))}
-        </select>
+        {mode === "edit" ? (
+          <>
+            <Input
+              id={`${mode}-aligned`}
+              value={textOrEmpty(defaultValues?.alignedWithCustomer) || "否-未对齐"}
+              readOnly
+              className="h-9 w-full rounded-md border bg-muted/30 px-3 text-sm"
+            />
+            <input type="hidden" name="alignedWithCustomer" value={textOrEmpty(defaultValues?.alignedWithCustomer)} />
+            <p className="text-xs text-muted-foreground">请使用“是否与客户完成对齐”列右侧更新图标进行增量更新并保留历史。</p>
+          </>
+        ) : (
+          <select
+            id={`${mode}-aligned`}
+            name="alignedWithCustomer"
+            defaultValue={textOrEmpty(defaultValues?.alignedWithCustomer)}
+            className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+          >
+            <option value="">请选择</option>
+            {alignedWithCustomerOptions.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+        )}
       </div>
 
       <div className="space-y-2">

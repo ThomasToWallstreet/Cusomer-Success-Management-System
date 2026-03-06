@@ -1,5 +1,9 @@
 import { prisma } from "@/lib/db";
-import type { CreateCustomerScenarioInput, UpdateCustomerScenarioInput } from "@/lib/validators/customer-scenario";
+import type {
+  CreateCustomerScenarioInput,
+  UpdateCustomerScenarioAlignmentInput,
+  UpdateCustomerScenarioInput,
+} from "@/lib/validators/customer-scenario";
 
 function toNullable(value?: string) {
   return value ?? null;
@@ -31,6 +35,9 @@ export async function listCustomerScenarioItems(scope?: { customerIds?: string[]
     include: {
       customer: {
         select: { id: true, name: true },
+      },
+      alignmentHistories: {
+        orderBy: [{ alignedUpdatedAt: "desc" }, { createdAt: "desc" }],
       },
     },
     orderBy: [{ customer: { name: "asc" } }, { name: "asc" }],
@@ -82,6 +89,28 @@ export async function updateCustomerScenarioItem(input: UpdateCustomerScenarioIn
       alignedWithCustomer: toNullable(input.alignedWithCustomer),
       note: toNullable(input.note),
     },
+  });
+}
+
+export async function updateCustomerScenarioAlignment(input: UpdateCustomerScenarioAlignmentInput) {
+  return prisma.$transaction(async (tx) => {
+    const updated = await tx.customerScenarioItem.update({
+      where: { id: input.id },
+      data: {
+        alignedWithCustomer: input.alignedWithCustomer,
+        alignedUpdatedAt: input.alignedUpdatedAt,
+        alignedEvidence: input.alignedEvidence,
+      },
+    });
+    await tx.customerScenarioAlignmentHistory.create({
+      data: {
+        scenarioItemId: input.id,
+        alignedWithCustomer: input.alignedWithCustomer,
+        alignedUpdatedAt: input.alignedUpdatedAt,
+        alignedEvidence: input.alignedEvidence,
+      },
+    });
+    return updated;
   });
 }
 

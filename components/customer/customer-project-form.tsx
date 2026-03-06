@@ -171,19 +171,32 @@ export function CustomerProjectForm({
         </div>
         <div className="space-y-2">
           <Label htmlFor={`${mode}-business-goal-achieved`}>经营目标是否达成</Label>
-          <select
-            id={`${mode}-business-goal-achieved`}
-            name="businessGoalAchieved"
-            defaultValue={textOrEmpty(defaultValues?.businessGoalAchieved)}
-            className="h-9 w-full rounded-md border bg-background px-3 text-sm"
-          >
-            <option value="">请选择</option>
-            {businessGoalResultOptions.map((option) => (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ))}
-          </select>
+          {mode === "edit" ? (
+            <>
+              <Input
+                id={`${mode}-business-goal-achieved`}
+                value={textOrEmpty(defaultValues?.businessGoalAchieved) || "未达成"}
+                readOnly
+                className="h-9 w-full rounded-md border bg-muted/30 px-3 text-sm"
+              />
+              <input type="hidden" name="businessGoalAchieved" value={textOrEmpty(defaultValues?.businessGoalAchieved)} />
+              <p className="text-xs text-muted-foreground">请使用“经营目标是否达成”列右侧更新图标进行增量更新并保留历史。</p>
+            </>
+          ) : (
+            <select
+              id={`${mode}-business-goal-achieved`}
+              name="businessGoalAchieved"
+              defaultValue={textOrEmpty(defaultValues?.businessGoalAchieved)}
+              className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+            >
+              <option value="">请选择</option>
+              {businessGoalResultOptions.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
       </div>
 

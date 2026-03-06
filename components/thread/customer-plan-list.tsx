@@ -125,7 +125,7 @@ export function CustomerPlanList({
                   <span>最近更新：{formatDateTimeCST(group.updatedAt)}</span>
                 </div>
                 {customerDetailHref ? (
-                  <Button variant="outline" size="sm" asChild>
+                  <Button size="sm" className="bg-black text-white hover:bg-black/90" asChild>
                     <Link href={customerDetailHref}>进入关键场景详情</Link>
                   </Button>
                 ) : null}

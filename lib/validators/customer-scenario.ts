@@ -43,5 +43,29 @@ export const deleteCustomerScenarioSchema = z.object({
   id: normalizeRequiredText("场景ID"),
 });
 
+function normalizeRequiredDateTime(label: string) {
+  return z.preprocess((value) => {
+    if (typeof value !== "string") return undefined;
+    const raw = value.trim();
+    if (!raw) return undefined;
+    const matched = raw.match(/^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})$/);
+    if (!matched) return undefined;
+    const date = new Date(`${matched[1]}T${matched[2]}:00+08:00`);
+    if (Number.isNaN(date.getTime())) return undefined;
+    return date;
+  }, z.date({
+    invalid_type_error: `${label}格式不正确`,
+    required_error: `${label}不能为空`,
+  }));
+}
+
+export const updateCustomerScenarioAlignmentSchema = z.object({
+  id: normalizeRequiredText("场景ID"),
+  alignedWithCustomer: z.enum(alignedWithCustomerOptions, { message: "是否与客户完成对齐非法" }),
+  alignedUpdatedAt: normalizeRequiredDateTime("对齐更新时间"),
+  alignedEvidence: normalizeRequiredText("更新举证", 1000),
+});
+
 export type CreateCustomerScenarioInput = z.infer<typeof createCustomerScenarioSchema>;
 export type UpdateCustomerScenarioInput = z.infer<typeof updateCustomerScenarioSchema>;
+export type UpdateCustomerScenarioAlignmentInput = z.infer<typeof updateCustomerScenarioAlignmentSchema>;

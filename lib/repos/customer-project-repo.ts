@@ -1,7 +1,11 @@
 import { Prisma } from "@prisma/client";
 
 import { prisma } from "@/lib/db";
-import type { CreateCustomerProjectInput, UpdateCustomerProjectInput } from "@/lib/validators/customer-project";
+import type {
+  CreateCustomerProjectInput,
+  UpdateCustomerProjectBusinessGoalInput,
+  UpdateCustomerProjectInput,
+} from "@/lib/validators/customer-project";
 
 function toNullable(value?: string) {
   return value ?? null;
@@ -33,6 +37,9 @@ export async function listCustomerProjectItems(scope?: { customerIds?: string[];
     include: {
       customer: {
         select: { id: true, name: true },
+      },
+      businessGoalHistories: {
+        orderBy: [{ businessGoalUpdatedAt: "desc" }, { createdAt: "desc" }],
       },
     },
     orderBy: [{ customer: { name: "asc" } }, { name: "asc" }],
@@ -88,6 +95,28 @@ export async function updateCustomerProjectItem(input: UpdateCustomerProjectInpu
       keyScenarioDescription: toNullable(input.keyScenarioDescription),
       note: toNullable(input.note),
     },
+  });
+}
+
+export async function updateCustomerProjectBusinessGoal(input: UpdateCustomerProjectBusinessGoalInput) {
+  return prisma.$transaction(async (tx) => {
+    const updated = await tx.customerProjectItem.update({
+      where: { id: input.id },
+      data: {
+        businessGoalAchieved: input.businessGoalAchieved,
+        businessGoalUpdatedAt: input.businessGoalUpdatedAt,
+        businessGoalEvidence: input.businessGoalEvidence,
+      },
+    });
+    await tx.customerProjectBusinessGoalHistory.create({
+      data: {
+        projectItemId: input.id,
+        businessGoalAchieved: input.businessGoalAchieved,
+        businessGoalUpdatedAt: input.businessGoalUpdatedAt,
+        businessGoalEvidence: input.businessGoalEvidence,
+      },
+    });
+    return updated;
   });
 }
 

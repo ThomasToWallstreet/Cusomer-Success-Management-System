@@ -13,32 +13,38 @@ import {
   deleteCustomerContact,
   getCustomerContactById,
   updateCustomerContact,
+  updateCustomerContactSatisfaction,
 } from "@/lib/repos/customer-contact-repo";
 import {
   createCustomerProjectItem,
   deleteCustomerProjectItem,
   getCustomerProjectItemById,
+  updateCustomerProjectBusinessGoal,
   updateCustomerProjectItem,
 } from "@/lib/repos/customer-project-repo";
 import {
   createCustomerScenarioItem,
   deleteCustomerScenarioItem,
   getCustomerScenarioItemById,
+  updateCustomerScenarioAlignment,
   updateCustomerScenarioItem,
 } from "@/lib/repos/customer-scenario-repo";
 import {
   createCustomerContactSchema,
   deleteCustomerContactSchema,
   updateCustomerContactSchema,
+  updateCustomerContactSatisfactionSchema,
 } from "@/lib/validators/customer-contact";
 import {
   createCustomerProjectSchema,
   deleteCustomerProjectSchema,
+  updateCustomerProjectBusinessGoalSchema,
   updateCustomerProjectSchema,
 } from "@/lib/validators/customer-project";
 import {
   createCustomerScenarioSchema,
   deleteCustomerScenarioSchema,
+  updateCustomerScenarioAlignmentSchema,
   updateCustomerScenarioSchema,
 } from "@/lib/validators/customer-scenario";
 import {
@@ -48,6 +54,8 @@ import {
   updateCustomerListEntrySchema,
 } from "@/lib/validators/customer-management";
 import { listCustomerIdsByManager } from "@/lib/repos/manager-assignment-repo";
+import { listThreads, updateThreadSection } from "@/lib/repos/thread-repo";
+import { deriveOrgChangesFromSatisfactionStates } from "@/lib/thread-goal-progress";
 import { isSupervisorRole, parseViewerRole } from "@/lib/viewer-role";
 
 function assertSupervisor(formData: FormData) {
@@ -244,6 +252,85 @@ export async function deleteCustomerContactAction(formData: FormData) {
   revalidatePath("/threads");
 }
 
+export async function updateCustomerContactSatisfactionAction(formData: FormData) {
+  const parsed = updateCustomerContactSatisfactionSchema.safeParse({
+    id: formData.get("id"),
+    satisfactionCurrent: formData.get("satisfactionCurrent"),
+    satisfactionUpdatedAt: formData.get("satisfactionUpdatedAt"),
+    satisfactionEvidence: formData.get("satisfactionEvidence"),
+  });
+  if (!parsed.success) {
+    throw new Error(parsed.error.issues[0]?.message || "更新满意度现状失败");
+  }
+  const existing = await getCustomerContactById(parsed.data.id);
+  if (!existing) {
+    throw new Error("关键人不存在或已删除");
+  }
+  await assertCustomerScopedPermission(formData, existing.customerId);
+  await updateCustomerContactSatisfaction(parsed.data);
+
+  const customerThreads = await listThreads({ customerId: existing.customerId });
+  await Promise.all(
+    customerThreads.map(async (thread) => {
+      const orgSection =
+        thread.orgSection && typeof thread.orgSection === "object"
+          ? ({ ...(thread.orgSection as Record<string, unknown>) } as Record<string, unknown>)
+          : {};
+      const stakeholderRows = Array.isArray(orgSection.stakeholders)
+        ? [...(orgSection.stakeholders as Array<Record<string, unknown>>)]
+        : [];
+      const nextStakeholderRows = stakeholderRows.map((row) => {
+        const sameName = String(row.name || "").trim() === existing.name;
+        const sameDept = (String(row.department || "").trim() || "-") === (existing.department || "-");
+        const sameLevel = (String(row.level || "").trim() || "-") === (existing.level || "-");
+        const sameContact = sameName && sameDept && sameLevel;
+        if (!sameContact) return row;
+        return {
+          ...row,
+          currentState: parsed.data.satisfactionCurrent,
+        };
+      });
+
+      const snapshotRows = Array.isArray(orgSection.contactMasterSnapshotList)
+        ? [...(orgSection.contactMasterSnapshotList as Array<Record<string, unknown>>)]
+        : [];
+      const referencesSnapshot = snapshotRows.some((row) => String(row.id || "") === existing.id);
+      const referencesPrimary = String(thread.contactId || "") === existing.id;
+      const referencesStakeholder = stakeholderRows.some((row) => String(row.name || "").trim() === existing.name);
+      if (!referencesSnapshot && !referencesPrimary && !referencesStakeholder) {
+        return;
+      }
+      const nextSnapshotRows = snapshotRows.map((row) => {
+        if (String(row.id || "") !== existing.id) return row;
+        return {
+          ...row,
+          satisfactionCurrent: parsed.data.satisfactionCurrent,
+          satisfactionUpdatedAt: parsed.data.satisfactionUpdatedAt.toISOString(),
+          satisfactionEvidence: parsed.data.satisfactionEvidence,
+        };
+      });
+
+      const satisfactionStates = [
+        ...nextStakeholderRows.map((row) => String(row.currentState || "").trim()).filter(Boolean),
+        ...nextSnapshotRows.map((row) => String(row.satisfactionCurrent || "").trim()).filter(Boolean),
+      ];
+      const nextOrgChanges = deriveOrgChangesFromSatisfactionStates(satisfactionStates);
+      await updateThreadSection(thread.id, "orgSection", {
+        ...orgSection,
+        stakeholders: nextStakeholderRows,
+        contactMasterSnapshotList: nextSnapshotRows,
+        orgCurrentState: parsed.data.satisfactionCurrent,
+        orgChanges: nextOrgChanges,
+      } as never);
+    }),
+  );
+
+  revalidatePath("/customer-management");
+  revalidatePath("/threads/new");
+  revalidatePath("/threads");
+  revalidatePath(`/threads/customers/${existing.customerId}`);
+}
+
 export async function createCustomerProjectAction(formData: FormData) {
   const parsed = createCustomerProjectSchema.safeParse({
     customerId: formData.get("customerId"),
@@ -309,6 +396,71 @@ export async function deleteCustomerProjectAction(formData: FormData) {
   revalidatePath("/threads/new");
 }
 
+export async function updateCustomerProjectBusinessGoalAction(formData: FormData) {
+  const parsed = updateCustomerProjectBusinessGoalSchema.safeParse({
+    id: formData.get("id"),
+    businessGoalAchieved: formData.get("businessGoalAchieved"),
+    businessGoalUpdatedAt: formData.get("businessGoalUpdatedAt"),
+    businessGoalEvidence: formData.get("businessGoalEvidence"),
+  });
+  if (!parsed.success) {
+    throw new Error(parsed.error.issues[0]?.message || "更新经营目标是否达成失败");
+  }
+  const existing = await getCustomerProjectItemById(parsed.data.id);
+  if (!existing) {
+    throw new Error("项目清单（突破/续费/复购）不存在或已删除");
+  }
+  await assertCustomerScopedPermission(formData, existing.customerId);
+  await updateCustomerProjectBusinessGoal(parsed.data);
+
+  const customerThreads = await listThreads({ customerId: existing.customerId });
+  await Promise.all(
+    customerThreads.map(async (thread) => {
+      const goalSection =
+        thread.goalSection && typeof thread.goalSection === "object"
+          ? ({ ...(thread.goalSection as Record<string, unknown>) } as Record<string, unknown>)
+          : {};
+      const snapshot = goalSection.projectMasterSnapshot && typeof goalSection.projectMasterSnapshot === "object"
+        ? (goalSection.projectMasterSnapshot as Record<string, unknown>)
+        : {};
+      const referencesProject =
+        String(thread.projectItemId || "") === existing.id || String(snapshot.id || "") === existing.id;
+      if (!referencesProject) return;
+
+      const currentHistory = Array.isArray(goalSection.businessGoalHistory)
+        ? [...(goalSection.businessGoalHistory as Array<Record<string, unknown>>)]
+        : [];
+      const nextHistory = [
+        {
+          businessGoalAchieved: parsed.data.businessGoalAchieved,
+          businessGoalUpdatedAt: parsed.data.businessGoalUpdatedAt.toISOString(),
+          businessGoalEvidence: parsed.data.businessGoalEvidence,
+        },
+        ...currentHistory,
+      ].slice(0, 20);
+
+      await updateThreadSection(thread.id, "goalSection", {
+        ...goalSection,
+        businessGoalAchieved: parsed.data.businessGoalAchieved,
+        businessGoalUpdatedAt: parsed.data.businessGoalUpdatedAt.toISOString(),
+        businessGoalEvidence: parsed.data.businessGoalEvidence,
+        businessGoalHistory: nextHistory,
+        projectMasterSnapshot: {
+          ...snapshot,
+          businessGoalAchieved: parsed.data.businessGoalAchieved,
+          businessGoalUpdatedAt: parsed.data.businessGoalUpdatedAt.toISOString(),
+          businessGoalEvidence: parsed.data.businessGoalEvidence,
+        },
+      } as never);
+    }),
+  );
+
+  revalidatePath("/customer-management");
+  revalidatePath("/threads/new");
+  revalidatePath("/threads");
+  revalidatePath(`/threads/customers/${existing.customerId}`);
+}
+
 export async function createCustomerScenarioAction(formData: FormData) {
   const parsed = createCustomerScenarioSchema.safeParse({
     customerId: formData.get("customerId"),
@@ -368,5 +520,70 @@ export async function deleteCustomerScenarioAction(formData: FormData) {
   await deleteCustomerScenarioItem(parsed.data.id);
   revalidatePath("/customer-management");
   revalidatePath("/threads/new");
+}
+
+export async function updateCustomerScenarioAlignmentAction(formData: FormData) {
+  const parsed = updateCustomerScenarioAlignmentSchema.safeParse({
+    id: formData.get("id"),
+    alignedWithCustomer: formData.get("alignedWithCustomer"),
+    alignedUpdatedAt: formData.get("alignedUpdatedAt"),
+    alignedEvidence: formData.get("alignedEvidence"),
+  });
+  if (!parsed.success) {
+    throw new Error(parsed.error.issues[0]?.message || "更新是否与客户完成对齐失败");
+  }
+  const existing = await getCustomerScenarioItemById(parsed.data.id);
+  if (!existing) {
+    throw new Error("关键场景清单不存在或已删除");
+  }
+  await assertCustomerScopedPermission(formData, existing.customerId);
+  await updateCustomerScenarioAlignment(parsed.data);
+
+  const customerThreads = await listThreads({ customerId: existing.customerId });
+  await Promise.all(
+    customerThreads.map(async (thread) => {
+      const successSection =
+        thread.successSection && typeof thread.successSection === "object"
+          ? ({ ...(thread.successSection as Record<string, unknown>) } as Record<string, unknown>)
+          : {};
+      const snapshot = successSection.scenarioMasterSnapshot && typeof successSection.scenarioMasterSnapshot === "object"
+        ? (successSection.scenarioMasterSnapshot as Record<string, unknown>)
+        : {};
+      const referencesScenario =
+        String(thread.scenarioItemId || "") === existing.id || String(snapshot.id || "") === existing.id;
+      if (!referencesScenario) return;
+
+      const currentHistory = Array.isArray(successSection.alignmentHistory)
+        ? [...(successSection.alignmentHistory as Array<Record<string, unknown>>)]
+        : [];
+      const nextHistory = [
+        {
+          alignedWithCustomer: parsed.data.alignedWithCustomer,
+          alignedUpdatedAt: parsed.data.alignedUpdatedAt.toISOString(),
+          alignedEvidence: parsed.data.alignedEvidence,
+        },
+        ...currentHistory,
+      ].slice(0, 20);
+
+      await updateThreadSection(thread.id, "successSection", {
+        ...successSection,
+        alignedWithCustomer: parsed.data.alignedWithCustomer,
+        alignedUpdatedAt: parsed.data.alignedUpdatedAt.toISOString(),
+        alignedEvidence: parsed.data.alignedEvidence,
+        alignmentHistory: nextHistory,
+        scenarioMasterSnapshot: {
+          ...snapshot,
+          alignedWithCustomer: parsed.data.alignedWithCustomer,
+          alignedUpdatedAt: parsed.data.alignedUpdatedAt.toISOString(),
+          alignedEvidence: parsed.data.alignedEvidence,
+        },
+      } as never);
+    }),
+  );
+
+  revalidatePath("/customer-management");
+  revalidatePath("/threads/new");
+  revalidatePath("/threads");
+  revalidatePath(`/threads/customers/${existing.customerId}`);
 }
 

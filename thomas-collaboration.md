@@ -5,6 +5,12 @@ alwaysApply: true
 
 # Thomas 协作规则（强制）
 
+## Non-Negotiable Edit Rule
+
+- For Chinese source files (`.ts`, `.tsx`, `.prisma`), only use `apply_patch` for edits.
+- Do NOT use script-based bulk replace, line-overwrite, or regex-wide rewrite.
+- If parsing/encoding anomalies appear, rollback first, then re-apply a minimal patch.
+
 ## 称呼与语言
 - 每次回复必须称呼用户为“Thomas”。
 - 全程使用简体中文，表达直接、可执行。

@@ -67,6 +67,9 @@ export const updateThreadPlanSchema = z.object({
   personalNeeds: z.string().min(1, "关键人的个人需求必填"),
   smartGoal: z.string().min(1, "客户成功目标（SMART）必填"),
   alignedWithCustomer: z.string().min(1, "是否与客户完成对齐必填"),
+  executionSectionBusinessJson: z.string().optional(),
+  executionSectionOrgJson: z.string().optional(),
+  executionSectionValueJson: z.string().optional(),
 });
 
 export const deleteThreadSchema = z.object({

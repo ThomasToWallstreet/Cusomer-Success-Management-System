@@ -29,6 +29,22 @@ import {
 import { isSupervisorRole, parseViewerRole } from "@/lib/viewer-role";
 import { syncExecutionActionsFromSection } from "@/lib/services/execution-action-service";
 
+function toRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
+}
+
+function parseGoalSectionJson(value: FormDataEntryValue | null, expectedGoalKey: string) {
+  if (typeof value !== "string" || !value.trim()) return null;
+  try {
+    const payload = JSON.parse(value);
+    const goals = Array.isArray(payload?.goals) ? (payload.goals as Array<Record<string, unknown>>) : [];
+    const matched = goals.find((item) => String(item.goalKey || "") === expectedGoalKey);
+    return matched ? toRecord(matched) : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function createThreadAction(formData: FormData) {
   const parsed = createThreadSchema.safeParse({
     role: formData.get("role"),
@@ -352,6 +368,9 @@ export async function updateThreadPlanAction(formData: FormData) {
     personalNeeds: formData.get("personalNeeds"),
     smartGoal: formData.get("smartGoal"),
     alignedWithCustomer: formData.get("alignedWithCustomer"),
+    executionSectionBusinessJson: formData.get("executionSectionBusinessJson"),
+    executionSectionOrgJson: formData.get("executionSectionOrgJson"),
+    executionSectionValueJson: formData.get("executionSectionValueJson"),
   });
 
   if (!parsed.success) {
@@ -373,6 +392,44 @@ export async function updateThreadPlanAction(formData: FormData) {
     current.activitySection && typeof current.activitySection === "object"
       ? (current.activitySection as Record<string, unknown>)
       : {};
+  const currentExecution = current.executionSection && typeof current.executionSection === "object"
+    ? (current.executionSection as Record<string, unknown>)
+    : {};
+  const currentGoals = Array.isArray(currentExecution.goals) ? (currentExecution.goals as Array<Record<string, unknown>>) : [];
+  const businessGoal = parseGoalSectionJson(formData.get("executionSectionBusinessJson"), "BUSINESS_GROWTH");
+  const orgGoal = parseGoalSectionJson(formData.get("executionSectionOrgJson"), "ORG_BREAKTHROUGH");
+  const valueGoal = parseGoalSectionJson(formData.get("executionSectionValueJson"), "VALUE_REALIZATION");
+  const goalMap = new Map<string, Record<string, unknown>>();
+  for (const item of currentGoals) {
+    const key = String(item.goalKey || "");
+    if (key) goalMap.set(key, item);
+  }
+  if (businessGoal) goalMap.set("BUSINESS_GROWTH", businessGoal);
+  if (orgGoal) goalMap.set("ORG_BREAKTHROUGH", orgGoal);
+  if (valueGoal) goalMap.set("VALUE_REALIZATION", valueGoal);
+  const executionSectionPayload = {
+    ...currentExecution,
+    goals: [
+      goalMap.get("BUSINESS_GROWTH") || {
+        goalKey: "BUSINESS_GROWTH",
+        goalLabel: "经营目标-扩大收入",
+        headquartersActivities: [],
+        regionalActivities: [],
+      },
+      goalMap.get("ORG_BREAKTHROUGH") || {
+        goalKey: "ORG_BREAKTHROUGH",
+        goalLabel: "客户成功-组织关系",
+        headquartersActivities: [],
+        regionalActivities: [],
+      },
+      goalMap.get("VALUE_REALIZATION") || {
+        goalKey: "VALUE_REALIZATION",
+        goalLabel: "客户成功-价值兑现",
+        headquartersActivities: [],
+        regionalActivities: [],
+      },
+    ],
+  };
 
   await updateThreadOverview(parsed.data.id, {
     keyProjectScenario: parsed.data.keyProjectScenario,
@@ -401,6 +458,13 @@ export async function updateThreadPlanAction(formData: FormData) {
     smartGoal: parsed.data.smartGoal,
     alignedWithCustomer: parsed.data.alignedWithCustomer,
   } as never);
+  await updateThreadSection(parsed.data.id, "executionSection", executionSectionPayload as never);
+  await syncExecutionActionsFromSection({
+    threadId: parsed.data.id,
+    ownerName: current.ownerName || "",
+    executionSection: executionSectionPayload,
+    source: "UI_EXECUTION",
+  });
   revalidatePath(`/threads/${parsed.data.id}`);
   revalidatePath("/threads");
 }

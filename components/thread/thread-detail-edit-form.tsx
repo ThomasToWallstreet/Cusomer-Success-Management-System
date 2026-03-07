@@ -1,4 +1,5 @@
 import { updateThreadPlanAction } from "@/app/(dashboard)/threads/actions";
+import { ExecutionWorkbench } from "@/components/thread/execution-workbench";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,6 +21,7 @@ type Props = {
     orgSection: unknown;
     successSection: unknown;
     activitySection: unknown;
+    executionSection: unknown;
   };
 };
 
@@ -72,135 +74,175 @@ export function ThreadDetailEditForm({ thread }: Props) {
 
       <section className="space-y-3 rounded-md border p-3">
         <h3 className="text-sm font-semibold">经营目标-扩大收入</h3>
-        <div className="space-y-2">
-          <Label>目标维度 *</Label>
-          <div className="flex flex-wrap gap-3">
-            {targetDimensionOptions.map((option) => (
-              <label key={option} className="inline-flex items-center gap-2 text-sm">
-                <input type="checkbox" name="targetDimension" value={option} defaultChecked={targetDimensions.includes(option)} />
-                {option}
-              </label>
-            ))}
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+          <div className="space-y-3">
+            <div className="space-y-2">
+              <Label>目标维度 *</Label>
+              <div className="flex flex-wrap gap-3">
+                {targetDimensionOptions.map((option) => (
+                  <label key={option} className="inline-flex items-center gap-2 text-sm">
+                    <input type="checkbox" name="targetDimension" value={option} defaultChecked={targetDimensions.includes(option)} />
+                    {option}
+                  </label>
+                ))}
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="targetDescription">目标描述 *</Label>
+              <Textarea id="targetDescription" name="targetDescription" rows={3} defaultValue={toText(goal.targetDescription)} required />
+            </div>
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="businessStage">业务阶段 *</Label>
+                <select
+                  id="businessStage"
+                  name="businessStage"
+                  defaultValue={toText(goal.businessStage)}
+                  className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+                  required
+                >
+                  <option value="">请选择</option>
+                  {businessStageOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.value}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="businessGoalAchieved">经营目标是否达成 *</Label>
+                <select
+                  id="businessGoalAchieved"
+                  name="businessGoalAchieved"
+                  defaultValue={toText(goal.businessGoalAchieved)}
+                  className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+                  required
+                >
+                  <option value="">请选择</option>
+                  {businessGoalResultOptions.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
           </div>
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="targetDescription">目标描述 *</Label>
-          <Textarea id="targetDescription" name="targetDescription" rows={3} defaultValue={toText(goal.targetDescription)} required />
-        </div>
-        <div className="grid gap-3 md:grid-cols-2">
           <div className="space-y-2">
-            <Label htmlFor="businessStage">业务阶段 *</Label>
-            <select
-              id="businessStage"
-              name="businessStage"
-              defaultValue={toText(goal.businessStage)}
-              className="h-9 w-full rounded-md border bg-background px-3 text-sm"
-              required
-            >
-              <option value="">请选择</option>
-              {businessStageOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.value}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="businessGoalAchieved">经营目标是否达成 *</Label>
-            <select
-              id="businessGoalAchieved"
-              name="businessGoalAchieved"
-              defaultValue={toText(goal.businessGoalAchieved)}
-              className="h-9 w-full rounded-md border bg-background px-3 text-sm"
-              required
-            >
-              <option value="">请选择</option>
-              {businessGoalResultOptions.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </select>
+            <Label>举措新增模块</Label>
+            <ExecutionWorkbench
+              threadId={thread.id}
+              executionSection={thread.executionSection}
+              embedded
+              inputName="executionSectionBusinessJson"
+              goalKeyFilter="BUSINESS_GROWTH"
+            />
           </div>
         </div>
       </section>
 
       <section className="space-y-3 rounded-md border p-3">
         <h3 className="text-sm font-semibold">客户成功-组织关系</h3>
-        <div className="grid gap-3 md:grid-cols-2">
-          <div className="space-y-2">
-            <Label htmlFor="orgCurrentState">整体组织关系现状 *</Label>
-            <select
-              id="orgCurrentState"
-              name="orgCurrentState"
-              defaultValue={toText(org.orgCurrentState)}
-              className="h-9 w-full rounded-md border bg-background px-3 text-sm"
-              required
-            >
-              <option value="">请选择</option>
-              {orgCurrentStateOptions.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </select>
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+          <div className="grid gap-3 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="orgCurrentState">整体组织关系现状 *</Label>
+              <select
+                id="orgCurrentState"
+                name="orgCurrentState"
+                defaultValue={toText(org.orgCurrentState)}
+                className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+                required
+              >
+                <option value="">请选择</option>
+                {orgCurrentStateOptions.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="orgChanges">变化情况 *</Label>
+              <select
+                id="orgChanges"
+                name="orgChanges"
+                defaultValue={toText(org.orgChanges)}
+                className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+                required
+              >
+                <option value="">请选择</option>
+                {orgChangesOptions.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="orgChanges">变化情况 *</Label>
-            <select
-              id="orgChanges"
-              name="orgChanges"
-              defaultValue={toText(org.orgChanges)}
-              className="h-9 w-full rounded-md border bg-background px-3 text-sm"
-              required
-            >
-              <option value="">请选择</option>
-              {orgChangesOptions.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </select>
+            <Label>举措新增模块</Label>
+            <ExecutionWorkbench
+              threadId={thread.id}
+              executionSection={thread.executionSection}
+              embedded
+              inputName="executionSectionOrgJson"
+              goalKeyFilter="ORG_BREAKTHROUGH"
+            />
           </div>
         </div>
       </section>
 
       <section className="space-y-3 rounded-md border p-3">
         <h3 className="text-sm font-semibold">客户成功-价值兑现</h3>
-        <div className="space-y-2">
-          <Label htmlFor="businessNeedAnalysis">客户业务需求分析 *</Label>
-          <Textarea
-            id="businessNeedAnalysis"
-            name="businessNeedAnalysis"
-            rows={3}
-            defaultValue={toText(success.businessNeedAnalysis)}
-            required
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="personalNeeds">关键人的个人需求 *</Label>
-          <Textarea id="personalNeeds" name="personalNeeds" rows={3} defaultValue={toText(success.personalNeeds)} required />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="smartGoal">客户成功目标（SMART） *</Label>
-          <Textarea id="smartGoal" name="smartGoal" rows={3} defaultValue={toText(success.smartGoal)} required />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="alignedWithCustomer">是否与客户完成对齐 *</Label>
-          <select
-            id="alignedWithCustomer"
-            name="alignedWithCustomer"
-            defaultValue={toText(success.alignedWithCustomer)}
-            className="h-9 w-full rounded-md border bg-background px-3 text-sm"
-            required
-          >
-            <option value="">请选择</option>
-            {alignedWithCustomerOptions.map((option) => (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ))}
-          </select>
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+          <div className="space-y-3">
+            <div className="space-y-2">
+              <Label htmlFor="businessNeedAnalysis">客户业务需求分析 *</Label>
+              <Textarea
+                id="businessNeedAnalysis"
+                name="businessNeedAnalysis"
+                rows={3}
+                defaultValue={toText(success.businessNeedAnalysis)}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="personalNeeds">关键人的个人需求 *</Label>
+              <Textarea id="personalNeeds" name="personalNeeds" rows={3} defaultValue={toText(success.personalNeeds)} required />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="smartGoal">客户成功目标（SMART） *</Label>
+              <Textarea id="smartGoal" name="smartGoal" rows={3} defaultValue={toText(success.smartGoal)} required />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="alignedWithCustomer">是否与客户完成对齐 *</Label>
+              <select
+                id="alignedWithCustomer"
+                name="alignedWithCustomer"
+                defaultValue={toText(success.alignedWithCustomer)}
+                className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+                required
+              >
+                <option value="">请选择</option>
+                {alignedWithCustomerOptions.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label>举措新增模块</Label>
+            <ExecutionWorkbench
+              threadId={thread.id}
+              executionSection={thread.executionSection}
+              embedded
+              inputName="executionSectionValueJson"
+              goalKeyFilter="VALUE_REALIZATION"
+            />
+          </div>
         </div>
       </section>
 

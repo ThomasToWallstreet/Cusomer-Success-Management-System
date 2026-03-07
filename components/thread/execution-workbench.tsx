@@ -267,18 +267,24 @@ export function ExecutionWorkbench({
   threadId,
   executionSection,
   showSavedDialog = false,
+  embedded = false,
+  inputName = "executionSectionJson",
+  goalKeyFilter,
 }: {
   threadId: string;
   executionSection: unknown;
   showSavedDialog?: boolean;
+  embedded?: boolean;
+  inputName?: string;
+  goalKeyFilter?: "BUSINESS_GROWTH" | "ORG_BREAKTHROUGH" | "VALUE_REALIZATION";
 }) {
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const managerName = searchParams.get("managerName") || "";
-  const role = searchParams.get("role") || "";
+  const managerName = embedded ? "" : searchParams.get("managerName") || "";
+  const role = embedded ? "" : searchParams.get("role") || "";
   const execution = toRecord(executionSection);
-  const initialGoals = normalizeGoals(execution);
+  const initialGoals = normalizeGoals(execution).filter((goal) => !goalKeyFilter || goal.goalKey === goalKeyFilter);
   const [goals, setGoals] = useState<GoalPlan[]>(initialGoals);
   const [expandedGoalKey, setExpandedGoalKey] = useState<string>("");
   const [expandedSectionType, setExpandedSectionType] = useState<"headquarters" | "regional" | null>(null);
@@ -288,18 +294,15 @@ export function ExecutionWorkbench({
     Record<string, { activityKey: string; planStart: string; status: ActivityStatus; note: string } | null>
   >({});
   const [expandedRegionalActivityId, setExpandedRegionalActivityId] = useState<Record<string, string | null>>({});
-  const savedAction = searchParams.get("savedAction") || "";
-  const savedGoalKey = searchParams.get("savedGoalKey") || "";
+  const savedAction = embedded ? "" : searchParams.get("savedAction") || "";
+  const savedGoalKey = embedded ? "" : searchParams.get("savedGoalKey") || "";
   void showSavedDialog;
 
   const updateGoal = (goalKey: string, updater: (goal: GoalPlan) => GoalPlan) => {
     setGoals((prev) => prev.map((goal) => (goal.goalKey === goalKey ? updater(goal) : goal)));
   };
 
-  const serializedSectionJson = JSON.stringify({
-    ...execution,
-    goals,
-  });
+  const serializedSectionJson = JSON.stringify({ goals });
   const redirectTo = useMemo(() => {
     const params = new URLSearchParams(searchParams.toString());
     params.set("tab", "execution");
@@ -308,6 +311,7 @@ export function ExecutionWorkbench({
   }, [pathname, searchParams]);
 
   useEffect(() => {
+    if (embedded) return;
     if (!savedAction) return;
     const timer = window.setTimeout(() => {
       const params = new URLSearchParams(searchParams.toString());
@@ -320,13 +324,13 @@ export function ExecutionWorkbench({
     return () => window.clearTimeout(timer);
   }, [pathname, router, savedAction, searchParams]);
 
-  return (
-    <form action={updateThreadSectionAction} className="space-y-3">
+  const content = (
+    <div className="space-y-3">
         <input type="hidden" name="id" value={threadId} />
-        <input type="hidden" name="section" value="executionSection" />
-        <input type="hidden" name="sectionJson" value={serializedSectionJson} />
-        <input type="hidden" name="redirectTo" value={redirectTo} />
-        <input type="hidden" name="changedBy" value={managerName || role || "unknown"} />
+        <input type="hidden" name={embedded ? inputName : "sectionJson"} value={serializedSectionJson} />
+        {!embedded ? <input type="hidden" name="section" value="executionSection" /> : null}
+        {!embedded ? <input type="hidden" name="redirectTo" value={redirectTo} /> : null}
+        {!embedded ? <input type="hidden" name="changedBy" value={managerName || role || "unknown"} /> : null}
 
         {goals.map((goal) => {
           const expanded = expandedGoalKey === goal.goalKey;
@@ -1037,9 +1041,21 @@ export function ExecutionWorkbench({
           );
         })}
 
-        <div className="flex justify-end pt-1">
-          <ExecutionSaveButton savedAction={savedAction} />
-        </div>
-      </form>
+        {!embedded ? (
+          <div className="flex justify-end pt-1">
+            <ExecutionSaveButton savedAction={savedAction} />
+          </div>
+        ) : null}
+      </div>
+  );
+
+  if (embedded) {
+    return content;
+  }
+
+  return (
+    <form action={updateThreadSectionAction} className="space-y-3">
+      {content}
+    </form>
   );
 }

@@ -4,7 +4,6 @@ import { ArrowLeft } from "lucide-react";
 
 import { ThreadDetailEditForm } from "@/components/thread/thread-detail-edit-form";
 import { ThreadDetailReadonly } from "@/components/thread/thread-detail-readonly";
-import { ExecutionWorkbench } from "@/components/thread/execution-workbench";
 import { ThreadStepper } from "@/components/thread/thread-stepper";
 import { Button } from "@/components/ui/button";
 import { WeeklyGenerator } from "@/components/weekly-report/weekly-generator";
@@ -27,21 +26,37 @@ export default async function ThreadDetailPage({
 }) {
   const { id } = await params;
   const query = await searchParams;
-  const tab = getOne(query.tab) || "plan";
+  const tab = (getOne(query.tab) || "plan") === "execution" ? "plan" : getOne(query.tab) || "plan";
   const mode = getOne(query.mode) || "view";
   const thread = await getThreadDetail(id);
   if (!thread) notFound();
 
-  const tabLink = (nextTab: "plan" | "execution" | "weekly", nextMode?: "view" | "edit") =>
+  const tabLink = (nextTab: "plan" | "weekly", nextMode?: "view" | "edit") =>
     `/threads/${thread.id}?${new URLSearchParams({
       tab: nextTab,
       mode: nextMode || mode,
+      ...(getOne(query.managerName) ? { managerName: String(getOne(query.managerName)) } : {}),
+      ...(getOne(query.role) ? { role: String(getOne(query.role)) } : {}),
     }).toString()}`;
+
+  const backHref =
+    thread.customerId
+      ? `/threads/customers/${thread.customerId}?${new URLSearchParams({
+          scenarioId: thread.id,
+          ...(getOne(query.managerName) ? { managerName: String(getOne(query.managerName)) } : {}),
+          ...(getOne(query.role) ? { role: String(getOne(query.role)) } : {}),
+        }).toString()}`
+      : (getOne(query.managerName) || getOne(query.role))
+        ? `/threads?${new URLSearchParams({
+            ...(getOne(query.managerName) ? { managerName: String(getOne(query.managerName)) } : {}),
+            ...(getOne(query.role) ? { role: String(getOne(query.role)) } : {}),
+          }).toString()}`
+        : "/threads";
 
   return (
     <div className="space-y-4">
-      <Button variant="outline" asChild>
-        <Link href="/threads">
+      <Button className="bg-black text-white hover:bg-black/90" asChild>
+        <Link href={backHref}>
           <ArrowLeft className="mr-1 h-4 w-4" />
           返回客户成功计划
         </Link>
@@ -59,9 +74,6 @@ export default async function ThreadDetailPage({
           <div className="flex flex-wrap gap-2">
             <Button variant={tab === "plan" ? "default" : "outline"} size="sm" asChild>
               <Link href={tabLink("plan")}>计划详情</Link>
-            </Button>
-            <Button variant={tab === "execution" ? "default" : "outline"} size="sm" asChild>
-              <Link href={tabLink("execution")}>执行推进</Link>
             </Button>
             <Button variant={tab === "weekly" ? "default" : "outline"} size="sm" asChild>
               <Link href={tabLink("weekly")}>周报生成</Link>
@@ -93,6 +105,7 @@ export default async function ThreadDetailPage({
                 orgSection: thread.orgSection,
                 successSection: thread.successSection,
                 activitySection: thread.activitySection,
+                executionSection: thread.executionSection,
               }}
             />
           ) : (
@@ -107,14 +120,6 @@ export default async function ThreadDetailPage({
               }}
             />
           )
-        ) : null}
-
-        {tab === "execution" ? (
-          <ExecutionWorkbench
-            threadId={thread.id}
-            executionSection={thread.executionSection}
-            showSavedDialog={getOne(query.saved) === "1"}
-          />
         ) : null}
 
         {tab === "weekly" ? (

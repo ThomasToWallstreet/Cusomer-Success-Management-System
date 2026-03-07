@@ -228,7 +228,7 @@ export function ThreadCreateWorkflowForm({
               sectionRefs.current["business-goal"] = element;
             }}
           >
-            <h3 className="font-semibold">1、经营目标-扩大收入（项目清单（突破/续费/复购）主数据）</h3>
+            <h3 className="font-semibold">1、经营目标-扩大收入（项目清单（突破/续费/复购））</h3>
             <div className="space-y-2">
               <Label htmlFor="projectItemId">选择项目清单（突破/续费/复购） *</Label>
               <select
@@ -272,7 +272,7 @@ export function ThreadCreateWorkflowForm({
               sectionRefs.current["org-breakthrough"] = element;
             }}
           >
-            <h3 className="font-semibold">2、客户成功-组织关系（客户关键人主数据）</h3>
+            <h3 className="font-semibold">2、客户成功-组织关系（客户关键人）</h3>
             <div className="space-y-2">
               <Label>选择客户关键人（可多选） *</Label>
               <div className="space-y-2 rounded-md border p-3">
@@ -329,7 +329,7 @@ export function ThreadCreateWorkflowForm({
               sectionRefs.current["needs-understanding"] = element;
             }}
           >
-            <h3 className="font-semibold">3、客户成功-价值兑现（关键场景清单主数据）</h3>
+            <h3 className="font-semibold">3、客户成功-价值兑现（关键场景清单）</h3>
             <div className="space-y-2">
               <Label htmlFor="scenarioItemId">选择关键场景清单 *</Label>
               <select

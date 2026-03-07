@@ -230,14 +230,24 @@ export default async function CustomerPlanDetailPage({
               const businessGoalAchieved = scenarioProgress.businessGoalAchieved;
               const orgChanges = scenarioProgress.orgChanges;
               const alignedWithCustomer = scenarioProgress.alignedWithCustomer;
+              const workflowHref = `/threads/${scenario.id}?${new URLSearchParams(currentQuery).toString()}`;
               return (
-                <Link
+                <div
                   key={scenario.id}
-                  href={`/threads/customers/${customerId}?${scenarioQuery}`}
-                  className={`block rounded-md border p-3 transition-colors ${active ? "border-primary bg-muted/30" : "hover:bg-muted/20"}`}
+                  className={`rounded-md border p-3 transition-colors ${active ? "border-primary bg-muted/30" : "hover:bg-muted/20"}`}
                 >
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="text-sm font-semibold">关键场景：{scenario.keyProjectScenario}</div>
+                    <div className="flex items-center gap-2">
+                      <Link
+                        href={`/threads/customers/${customerId}?${scenarioQuery}`}
+                        className="text-sm font-semibold hover:underline"
+                      >
+                        关键场景：{scenario.keyProjectScenario}
+                      </Link>
+                      <Button size="sm" className="h-7 bg-black px-2 text-xs text-white hover:bg-black/90" asChild>
+                        <Link href={workflowHref}>进入工作流</Link>
+                      </Button>
+                    </div>
                     <div className="flex items-center gap-2">
                       <StageStatusBadge stageStatus={scenario.stageStatus} />
                       <RiskBadge riskLevel={scenario.riskLevel} />
@@ -265,7 +275,7 @@ export default async function CustomerPlanDetailPage({
                       tone={getAlignedTone(alignedWithCustomer)}
                     />
                   </div>
-                </Link>
+                </div>
               );
             })}
           </div>
@@ -277,9 +287,6 @@ export default async function CustomerPlanDetailPage({
               <h3 className="text-base font-semibold">关键场景详情面板</h3>
               <p className="text-xs text-muted-foreground"></p>
             </div>
-            <Button size="sm" className="bg-black text-white hover:bg-black/90" asChild>
-              <Link href={`/threads/${selected.id}`}>进入工作流</Link>
-            </Button>
           </div>
 
           <div className="flex flex-col gap-4">

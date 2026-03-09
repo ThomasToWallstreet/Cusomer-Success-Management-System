@@ -2,12 +2,13 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 
-import { ThreadDetailEditForm } from "@/components/thread/thread-detail-edit-form";
+import { ExecutionWorkbench } from "@/components/thread/execution-workbench";
 import { ThreadDetailReadonly } from "@/components/thread/thread-detail-readonly";
 import { ThreadStepper } from "@/components/thread/thread-stepper";
 import { Button } from "@/components/ui/button";
 import { WeeklyGenerator } from "@/components/weekly-report/weekly-generator";
 import { getThreadDetail } from "@/lib/repos/thread-repo";
+import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -15,6 +16,14 @@ type SearchParams = Record<string, string | string[] | undefined>;
 
 function getOne(query: string | string[] | undefined) {
   return Array.isArray(query) ? query[0] : query;
+}
+
+function toRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
+}
+
+function toText(value: unknown) {
+  return typeof value === "string" ? value.trim() : "";
 }
 
 export default async function ThreadDetailPage({
@@ -26,18 +35,30 @@ export default async function ThreadDetailPage({
 }) {
   const { id } = await params;
   const query = await searchParams;
-  const tab = (getOne(query.tab) || "plan") === "execution" ? "plan" : getOne(query.tab) || "plan";
-  const mode = getOne(query.mode) || "view";
+  const tab = getOne(query.tab) === "weekly" ? "weekly" : "plan";
+  const panel = getOne(query.panel) === "execution" ? "execution" : "readonly";
+  const savedAction = getOne(query.savedAction) || "";
   const thread = await getThreadDetail(id);
   if (!thread) notFound();
 
-  const tabLink = (nextTab: "plan" | "weekly", nextMode?: "view" | "edit") =>
-    `/threads/${thread.id}?${new URLSearchParams({
+  const activity = toRecord(thread.activitySection);
+  const success = toRecord(thread.successSection);
+  const scenarioDisplayName =
+    toText(toRecord(activity.scenarioMasterSnapshot).name) ||
+    toText(toRecord(success.scenarioMasterSnapshot).name) ||
+    thread.keyProjectScenario;
+
+  const tabLink = (nextTab: "plan" | "weekly", nextPanel?: "readonly" | "execution") => {
+    const params = new URLSearchParams({
       tab: nextTab,
-      mode: nextMode || mode,
       ...(getOne(query.managerName) ? { managerName: String(getOne(query.managerName)) } : {}),
       ...(getOne(query.role) ? { role: String(getOne(query.role)) } : {}),
-    }).toString()}`;
+    });
+    if (nextTab === "plan" && nextPanel === "execution") {
+      params.set("panel", "execution");
+    }
+    return `/threads/${thread.id}?${params.toString()}`;
+  };
 
   const backHref =
     thread.customerId
@@ -61,6 +82,7 @@ export default async function ThreadDetailPage({
           返回客户成功计划
         </Link>
       </Button>
+
       <ThreadStepper
         id={thread.id}
         stage={thread.stage}
@@ -80,46 +102,50 @@ export default async function ThreadDetailPage({
             </Button>
           </div>
           {tab === "plan" ? (
-            <div className="flex gap-2">
-              {mode === "edit" ? (
-                <Button variant="outline" size="sm" asChild>
-                  <Link href={tabLink("plan", "view")}>返回查看</Link>
-                </Button>
-              ) : (
-                <Button variant="outline" size="sm" asChild>
-                  <Link href={tabLink("plan", "edit")}>编辑计划</Link>
-                </Button>
-              )}
-            </div>
+            <Button variant="outline" size="sm" asChild>
+              <Link href={panel === "execution" ? tabLink("plan") : tabLink("plan", "execution")}>
+                {panel === "execution" ? "收起执行动作" : "新增执行动作"}
+              </Link>
+            </Button>
           ) : null}
         </div>
 
         {tab === "plan" ? (
-          mode === "edit" ? (
-            <ThreadDetailEditForm
-              thread={{
-                id: thread.id,
-                keyProjectScenario: thread.keyProjectScenario,
-                productLine: thread.productLine,
-                goalSection: thread.goalSection,
-                orgSection: thread.orgSection,
-                successSection: thread.successSection,
-                activitySection: thread.activitySection,
-                executionSection: thread.executionSection,
-              }}
-            />
-          ) : (
-            <ThreadDetailReadonly
-              thread={{
-                keyProjectScenario: thread.keyProjectScenario,
-                productLine: thread.productLine,
-                goalSection: thread.goalSection,
-                orgSection: thread.orgSection,
-                successSection: thread.successSection,
-                activitySection: thread.activitySection,
-              }}
-            />
-          )
+          <div className="space-y-3">
+            {savedAction === "save_execution" ? (
+              <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+                保存完成
+              </div>
+            ) : null}
+
+            <div className={cn("grid gap-4", panel === "execution" ? "xl:grid-cols-[minmax(0,1fr)_480px]" : "")}>
+              <div className="space-y-3">
+                <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
+                  客户成功计划详情不允许在当前页面修改。如需修改计划，请到客户管理界面编辑相关主数据。
+                </div>
+                <ThreadDetailReadonly
+                  thread={{
+                    keyProjectScenario: scenarioDisplayName,
+                    productLine: thread.productLine,
+                    goalSection: thread.goalSection,
+                    orgSection: thread.orgSection,
+                    successSection: thread.successSection,
+                    activitySection: thread.activitySection,
+                  }}
+                />
+              </div>
+
+              {panel === "execution" ? (
+                <section className="space-y-3 rounded-lg border bg-card p-4">
+                  <div>
+                    <h3 className="text-base font-semibold">新增执行动作</h3>
+                    <p className="text-sm text-muted-foreground">当前关键场景：{scenarioDisplayName}</p>
+                  </div>
+                  <ExecutionWorkbench threadId={thread.id} executionSection={thread.executionSection} />
+                </section>
+              ) : null}
+            </div>
+          </div>
         ) : null}
 
         {tab === "weekly" ? (

@@ -204,7 +204,7 @@ export async function createThreadWorkflowAction(formData: FormData) {
     scenarioItem: { connect: { id: scenarioItem.id } },
     keyPerson: selectedContacts.map((item) => item.name).join("、"),
     keyPersonDept: primaryContact.department || null,
-    keyProjectScenario: projectItem.name,
+    keyProjectScenario: scenarioItem.name,
     productLine: projectItem.productLine || null,
     ownerName: effectiveOwnerName,
     stage: "BASIC_INFO",
@@ -268,6 +268,7 @@ export async function createThreadWorkflowAction(formData: FormData) {
       keyScenarioDescription: scenarioItem.keyScenarioDescription,
       scenarioMasterSnapshot: {
         id: scenarioItem.id,
+        name: scenarioItem.name,
         keyScenarioDescription: scenarioItem.keyScenarioDescription,
       },
     },
@@ -345,10 +346,10 @@ export async function updateThreadSectionAction(formData: FormData) {
         if (goalKey) url.searchParams.set("savedGoalKey", goalKey);
         redirect(`${url.pathname}?${url.searchParams.toString()}`);
       } catch {
-        redirect(`/threads/${parsed.data.id}?tab=execution&mode=view&saved=1&savedAction=${submitAction}${goalKey ? `&savedGoalKey=${encodeURIComponent(goalKey)}` : ""}`);
+        redirect(`/threads/${parsed.data.id}?tab=plan&panel=execution&saved=1&savedAction=${submitAction}${goalKey ? `&savedGoalKey=${encodeURIComponent(goalKey)}` : ""}`);
       }
     } else {
-      redirect(`/threads/${parsed.data.id}?tab=execution&mode=view&saved=1&savedAction=${submitAction}${goalKey ? `&savedGoalKey=${encodeURIComponent(goalKey)}` : ""}`);
+      redirect(`/threads/${parsed.data.id}?tab=plan&panel=execution&saved=1&savedAction=${submitAction}${goalKey ? `&savedGoalKey=${encodeURIComponent(goalKey)}` : ""}`);
     }
   }
 }

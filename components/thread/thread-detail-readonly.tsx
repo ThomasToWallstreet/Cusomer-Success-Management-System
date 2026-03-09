@@ -55,7 +55,7 @@ export function ThreadDetailReadonly({ thread }: Props) {
     <div className="space-y-4 rounded-lg border bg-card p-4">
       <section className="space-y-2 rounded-md border p-3">
         <h3 className="text-sm font-semibold">基础信息</h3>
-        <ReadonlyRow label="项目场景" value={thread.keyProjectScenario} />
+        <ReadonlyRow label="关键场景" value={thread.keyProjectScenario} />
         <ReadonlyRow label="产品线" value={thread.productLine || "-"} />
         <ReadonlyRow label="关键场景说明" value={toText(basic.keyScenarioDescription)} />
       </section>
@@ -79,7 +79,7 @@ export function ThreadDetailReadonly({ thread }: Props) {
               <div key={`stakeholder-${index}`} className="rounded-md border bg-muted/20 p-2">
                 <p className="flex flex-wrap items-center gap-1.5 text-sm font-medium">
                   <span>
-                    {toText(person.name)} · {toText(person.department)} · {toText(person.level)}
+                    {toText(person.name)} / {toText(person.department)} / {toText(person.level)}
                   </span>
                   <span
                     className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs ${getStakeholderCurrentStateBadgeClass(person.currentState)}`}

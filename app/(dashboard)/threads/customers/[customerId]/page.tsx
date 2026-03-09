@@ -20,6 +20,7 @@ import {
   getOrgCurrentTone,
   getScenarioGoalProgress,
 } from "@/lib/thread-goal-progress";
+import { cn } from "@/lib/utils";
 import { isSupervisorRole, parseViewerRole } from "@/lib/viewer-role";
 
 export const dynamic = "force-dynamic";
@@ -43,6 +44,20 @@ function formatBooleanOrText(value: unknown, trueLabel = "是", falseLabel = "�
 
 function toText(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
+}
+
+function getScenarioDisplayName(thread: {
+  keyProjectScenario: string;
+  activitySection: unknown;
+  successSection: unknown;
+}) {
+  const activity = toRecord(thread.activitySection);
+  const success = toRecord(thread.successSection);
+  return (
+    toText(toRecord(activity.scenarioMasterSnapshot).name) ||
+    toText(toRecord(success.scenarioMasterSnapshot).name) ||
+    thread.keyProjectScenario
+  );
 }
 
 function extractContactIds(orgSection: Record<string, unknown>) {
@@ -117,6 +132,7 @@ export default async function CustomerPlanDetailPage({
   await ensureCustomerGoalWeeklySnapshot(customerId, scenarios);
   const selectedScenarioId = getOne(query.scenarioId) || scenarios[0].id;
   const selected = scenarios.find((item) => item.id === selectedScenarioId) || scenarios[0];
+  const selectedScenarioName = getScenarioDisplayName(selected);
   const customerGoalSummary = getCustomerGoalProgressSummary(scenarios);
 
   const currentQuery = {
@@ -181,7 +197,7 @@ export default async function CustomerPlanDetailPage({
   const executionSummary = buildThreadExecutionSummary({
     threadId: selected.id,
     customerName: customer.name,
-    scenarioName: selected.keyProjectScenario,
+    scenarioName: selectedScenarioName,
     ownerName: selected.ownerName,
     executionSection: selected.executionSection,
   });
@@ -230,21 +246,34 @@ export default async function CustomerPlanDetailPage({
               const businessGoalAchieved = scenarioProgress.businessGoalAchieved;
               const orgChanges = scenarioProgress.orgChanges;
               const alignedWithCustomer = scenarioProgress.alignedWithCustomer;
+              const scenarioDisplayName = getScenarioDisplayName(scenario);
               const workflowHref = `/threads/${scenario.id}?${new URLSearchParams(currentQuery).toString()}`;
               return (
                 <div
                   key={scenario.id}
-                  className={`rounded-md border p-3 transition-colors ${active ? "border-primary bg-muted/30" : "hover:bg-muted/20"}`}
+                  className={cn(
+                    "relative rounded-md border p-3 transition-colors",
+                    active
+                      ? "border-primary bg-muted/30"
+                      : "cursor-pointer hover:border-primary/50 hover:bg-muted/20",
+                  )}
                 >
-                  <div className="flex flex-wrap items-center justify-between gap-2">
+                  <Link
+                    href={`/threads/customers/${customerId}?${scenarioQuery}`}
+                    aria-current={active ? "page" : undefined}
+                    aria-label={`切换到关键场景 ${scenarioDisplayName}`}
+                    className="absolute inset-0 rounded-md"
+                  />
+                  <div className="pointer-events-none relative z-10 flex flex-wrap items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
-                      <Link
-                        href={`/threads/customers/${customerId}?${scenarioQuery}`}
-                        className="text-sm font-semibold hover:underline"
+                      <p className="text-sm font-semibold">
+                        关键场景：{scenarioDisplayName}
+                      </p>
+                      <Button
+                        size="sm"
+                        className="pointer-events-auto relative z-10 h-7 bg-black px-2 text-xs text-white hover:bg-black/90"
+                        asChild
                       >
-                        关键场景：{scenario.keyProjectScenario}
-                      </Link>
-                      <Button size="sm" className="h-7 bg-black px-2 text-xs text-white hover:bg-black/90" asChild>
                         <Link href={workflowHref}>进入工作流</Link>
                       </Button>
                     </div>
@@ -253,12 +282,12 @@ export default async function CustomerPlanDetailPage({
                       <RiskBadge riskLevel={scenario.riskLevel} />
                     </div>
                   </div>
-                  <div className="mt-2 flex flex-wrap gap-4 text-xs text-muted-foreground">
+                  <div className="pointer-events-none relative z-10 mt-2 flex flex-wrap gap-4 text-xs text-muted-foreground">
                     <span>负责人：{scenario.ownerName}</span>
                     <span>关键人：{scenario.keyPerson}</span>
                     <span>更新：{formatDateCST(scenario.updatedAt)}</span>
                   </div>
-                  <div className="mt-2 flex flex-wrap gap-2">
+                  <div className="pointer-events-none relative z-10 mt-2 flex flex-wrap gap-2">
                     <QualitativeStatusBadge
                       label="经营目标-扩大收入"
                       value={businessGoalAchieved}
@@ -302,7 +331,7 @@ export default async function CustomerPlanDetailPage({
             <section className="rounded-md border p-3">
               <h4 className="mb-3 text-sm font-semibold">基本信息</h4>
               <div className="space-y-2">
-                <DetailRow label="项目场景" value={selected.keyProjectScenario} />
+                <DetailRow label="关键场景" value={selectedScenarioName} />
                 <DetailRow label="产品线" value={selected.productLine || "-"} />
                 <DetailRow label="关键场景说明" value={String(basic.keyScenarioDescription || "-")} />
               </div>

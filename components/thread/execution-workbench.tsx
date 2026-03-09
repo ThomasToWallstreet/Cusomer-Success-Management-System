@@ -305,8 +305,9 @@ export function ExecutionWorkbench({
   const serializedSectionJson = JSON.stringify({ goals });
   const redirectTo = useMemo(() => {
     const params = new URLSearchParams(searchParams.toString());
-    params.set("tab", "execution");
-    params.set("mode", "view");
+    params.set("tab", "plan");
+    params.set("panel", "execution");
+    params.delete("mode");
     return `${pathname}?${params.toString()}`;
   }, [pathname, searchParams]);
 

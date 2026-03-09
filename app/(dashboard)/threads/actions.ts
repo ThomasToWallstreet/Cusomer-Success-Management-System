@@ -1,4 +1,4 @@
-﻿"use server";
+"use server";
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -254,6 +254,7 @@ export async function createThreadWorkflowAction(formData: FormData) {
       scenarioMasterSnapshot: {
         id: scenarioItem.id,
         name: scenarioItem.name,
+        keyScenarioDescription: scenarioItem.keyScenarioDescription,
         businessNeedAnalysis: scenarioItem.businessNeedAnalysis,
         personalNeeds: scenarioItem.personalNeeds,
         smartGoal: scenarioItem.smartGoal,
@@ -264,10 +265,10 @@ export async function createThreadWorkflowAction(formData: FormData) {
     },
     activitySection: {
       module: "基本信息",
-      keyScenarioDescription: projectItem.keyScenarioDescription,
-      projectMasterSnapshot: {
-        id: projectItem.id,
-        keyScenarioDescription: projectItem.keyScenarioDescription,
+      keyScenarioDescription: scenarioItem.keyScenarioDescription,
+      scenarioMasterSnapshot: {
+        id: scenarioItem.id,
+        keyScenarioDescription: scenarioItem.keyScenarioDescription,
       },
     },
   });

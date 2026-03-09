@@ -1,8 +1,8 @@
-import { z } from "zod";
+﻿import { z } from "zod";
 
 import { businessStageValues } from "@/lib/constants/domain";
 
-const targetDimensionOptions = ["复购", "新业务突破", "续约"] as const;
+const targetDimensionOptions = ["复购", "新业务突破", "续费"] as const;
 const productLineOptions = [
   "AC",
   "AF",
@@ -35,10 +35,7 @@ const businessGoalResultOptions = [
 function normalizeRequiredText(label: string, max = 120) {
   return z.preprocess(
     (value) => (typeof value === "string" ? value.trim() : ""),
-    z
-      .string()
-      .min(1, `${label}不能为空`)
-      .max(max, `${label}长度不能超过 ${max} 字符`),
+    z.string().min(1, `${label}不能为空`).max(max, `${label}长度不能超过 ${max} 个字符`),
   );
 }
 
@@ -49,7 +46,7 @@ function normalizeOptionalText(label: string, max = 2000) {
       const normalized = value.trim();
       return normalized.length ? normalized : undefined;
     },
-    z.string().max(max, `${label}长度不能超过 ${max} 字符`).optional(),
+    z.string().max(max, `${label}长度不能超过 ${max} 个字符`).optional(),
   );
 }
 
@@ -61,7 +58,6 @@ const baseSchema = z.object({
   targetDescription: normalizeOptionalText("目标描述", 2000),
   businessStage: z.enum(businessStageValues).optional(),
   businessGoalAchieved: z.enum(businessGoalResultOptions).optional(),
-  keyScenarioDescription: normalizeOptionalText("关键场景说明", 2000),
   note: normalizeOptionalText("备注", 2000),
 });
 
@@ -76,24 +72,27 @@ export const deleteCustomerProjectSchema = z.object({
 });
 
 function normalizeRequiredDateTime(label: string) {
-  return z.preprocess((value) => {
-    if (typeof value !== "string") return undefined;
-    const raw = value.trim();
-    if (!raw) return undefined;
-    const matched = raw.match(/^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})$/);
-    if (!matched) return undefined;
-    const date = new Date(`${matched[1]}T${matched[2]}:00+08:00`);
-    if (Number.isNaN(date.getTime())) return undefined;
-    return date;
-  }, z.date({
-    invalid_type_error: `${label}格式不正确`,
-    required_error: `${label}不能为空`,
-  }));
+  return z.preprocess(
+    (value) => {
+      if (typeof value !== "string") return undefined;
+      const raw = value.trim();
+      if (!raw) return undefined;
+      const matched = raw.match(/^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})$/);
+      if (!matched) return undefined;
+      const date = new Date(`${matched[1]}T${matched[2]}:00+08:00`);
+      if (Number.isNaN(date.getTime())) return undefined;
+      return date;
+    },
+    z.date({
+      invalid_type_error: `${label}格式不正确`,
+      required_error: `${label}不能为空`,
+    }),
+  );
 }
 
 export const updateCustomerProjectBusinessGoalSchema = z.object({
   id: normalizeRequiredText("项目ID"),
-  businessGoalAchieved: z.enum(businessGoalResultOptions, { message: "经营目标是否达成非法" }),
+  businessGoalAchieved: z.enum(businessGoalResultOptions, { message: "经营目标是否达成不合法" }),
   businessGoalUpdatedAt: normalizeRequiredDateTime("达成更新时间"),
   businessGoalEvidence: normalizeRequiredText("更新举证", 1000),
 });

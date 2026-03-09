@@ -5,8 +5,8 @@ import { History, Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
 import {
   createCustomerProjectAction,
   deleteCustomerProjectAction,
-  updateCustomerProjectBusinessGoalAction,
   updateCustomerProjectAction,
+  updateCustomerProjectBusinessGoalAction,
 } from "@/app/(dashboard)/customer-management/actions";
 import { CustomerProjectForm } from "@/components/customer/customer-project-form";
 import { DragScrollContainer } from "@/components/shared/drag-scroll-container";
@@ -43,7 +43,6 @@ type ProjectRow = {
     businessGoalEvidence: string;
     createdAt: Date | string;
   }>;
-  keyScenarioDescription: string | null;
   note: string | null;
 };
 
@@ -118,7 +117,7 @@ export function CustomerProjectTable({
       ) : null}
 
       <DragScrollContainer showHint>
-        <table className="w-full min-w-[1300px] text-[13px] leading-5">
+        <table className="w-full min-w-[1220px] text-[13px] leading-5">
           <thead className="bg-muted/40">
             <tr className="[&>th]:border-b [&>th]:border-r [&>th]:border-border/70 [&>th]:px-2 [&>th]:py-2.5 [&>th]:text-center [&>th]:align-middle [&>th]:font-semibold [&>th:last-child]:border-r-0">
               <th>客户名称</th>
@@ -128,7 +127,6 @@ export function CustomerProjectTable({
               <th>业务阶段</th>
               <th>经营目标是否达成</th>
               <th>目标描述</th>
-              <th>关键场景说明</th>
               <th>备注</th>
               {canEdit ? <th>操作</th> : null}
             </tr>
@@ -234,8 +232,7 @@ export function CustomerProjectTable({
                       </p>
                     </div>
                   </td>
-                  <td className="max-w-[220px] whitespace-pre-wrap break-words text-left align-top">{row.targetDescription || "-"}</td>
-                  <td className="max-w-[220px] whitespace-pre-wrap break-words text-left align-top">{row.keyScenarioDescription || "-"}</td>
+                  <td className="max-w-[260px] whitespace-pre-wrap break-words text-left align-top">{row.targetDescription || "-"}</td>
                   <td className="max-w-[220px] whitespace-pre-wrap break-words text-left align-top">{row.note || "-"}</td>
                   {canEdit ? (
                     <td>
@@ -267,7 +264,6 @@ export function CustomerProjectTable({
                                 targetDescription: row.targetDescription,
                                 businessStage: row.businessStage,
                                 businessGoalAchieved: row.businessGoalAchieved,
-                                keyScenarioDescription: row.keyScenarioDescription,
                                 note: row.note,
                               }}
                             />
@@ -288,7 +284,7 @@ export function CustomerProjectTable({
               ))
             ) : (
               <tr>
-                <td colSpan={canEdit ? 10 : 9} className="py-8 text-center text-sm text-muted-foreground">
+                <td colSpan={canEdit ? 9 : 8} className="py-8 text-center text-sm text-muted-foreground">
                   暂无项目清单（突破/续费/复购）数据。
                 </td>
               </tr>
@@ -299,4 +295,3 @@ export function CustomerProjectTable({
     </div>
   );
 }
-

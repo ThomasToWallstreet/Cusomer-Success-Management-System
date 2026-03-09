@@ -1,12 +1,12 @@
-"use client";
+﻿"use client";
 
 import { useFormStatus } from "react-dom";
 
-import { businessStageOptions } from "@/lib/constants/domain";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { businessStageOptions } from "@/lib/constants/domain";
 
 type CustomerOption = {
   id: string;
@@ -35,14 +35,8 @@ const productLineOptions = [
   "VPN",
 ] as const;
 
-const targetDimensionOptions = ["复购", "新业务突破", "续约"] as const;
-const businessGoalResultOptions = [
-  "复购已下单",
-  "复购机会已立项",
-  "续费已达成",
-  "突破业务价值已兑现",
-  "未达成",
-] as const;
+const targetDimensionOptions = ["复购", "新业务突破", "续费"] as const;
+const businessGoalResultOptions = ["复购已下单", "复购机会已立项", "续费已达成", "突破业务价值已兑现", "未达成"] as const;
 
 export type CustomerProjectFormValues = {
   id?: string;
@@ -53,7 +47,6 @@ export type CustomerProjectFormValues = {
   targetDescription?: string | null;
   businessStage?: string | null;
   businessGoalAchieved?: string | null;
-  keyScenarioDescription?: string | null;
   note?: string | null;
 };
 
@@ -208,16 +201,7 @@ export function CustomerProjectForm({
           rows={3}
           defaultValue={textOrEmpty(defaultValues?.targetDescription)}
         />
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor={`${mode}-key-scenario-description`}>关键场景说明</Label>
-        <Textarea
-          id={`${mode}-key-scenario-description`}
-          name="keyScenarioDescription"
-          rows={3}
-          defaultValue={textOrEmpty(defaultValues?.keyScenarioDescription)}
-        />
+        <p className="text-xs leading-5 text-muted-foreground">填写指引：扩大收入的目标需要量化金额，明确时间节点。</p>
       </div>
 
       <div className="space-y-2">

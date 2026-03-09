@@ -27,7 +27,6 @@ type ProjectOption = {
   targetDescription?: string | null;
   businessStage?: string | null;
   businessGoalAchieved?: string | null;
-  keyScenarioDescription?: string | null;
   note?: string | null;
 };
 
@@ -35,6 +34,7 @@ type ScenarioOption = {
   id: string;
   customerId: string;
   name: string;
+  keyScenarioDescription?: string | null;
   businessNeedAnalysis?: string | null;
   personalNeeds?: string | null;
   smartGoal?: string | null;
@@ -255,7 +255,6 @@ export function ThreadCreateWorkflowForm({
                   <p><span className="text-muted-foreground">目标维度：</span>{renderValue(selectedProject.targetDimension)}</p>
                   <p><span className="text-muted-foreground">业务阶段：</span>{renderValue(selectedProject.businessStage)}</p>
                   <p><span className="text-muted-foreground">经营目标是否达成：</span>{renderValue(selectedProject.businessGoalAchieved)}</p>
-                  <p><span className="text-muted-foreground">关键场景说明：</span>{renderValue(selectedProject.keyScenarioDescription)}</p>
                 </div>
                 <p className="mt-2"><span className="text-muted-foreground">目标描述：</span>{renderValue(selectedProject.targetDescription)}</p>
                 <p className="mt-2"><span className="text-muted-foreground">备注：</span>{renderValue(selectedProject.note)}</p>
@@ -354,6 +353,7 @@ export function ThreadCreateWorkflowForm({
                   <p><span className="text-muted-foreground">场景名称：</span>{renderValue(selectedScenario.name)}</p>
                   <p><span className="text-muted-foreground">对齐情况：</span>{renderValue(selectedScenario.alignedWithCustomer)}</p>
                 </div>
+                <p className="mt-2"><span className="text-muted-foreground">关键场景说明：</span>{renderValue(selectedScenario.keyScenarioDescription)}</p>
                 <p className="mt-2"><span className="text-muted-foreground">客户业务需求分析：</span>{renderValue(selectedScenario.businessNeedAnalysis)}</p>
                 <p className="mt-2"><span className="text-muted-foreground">关键人的个人需求：</span>{renderValue(selectedScenario.personalNeeds)}</p>
                 <p className="mt-2"><span className="text-muted-foreground">客户成功目标（SMART）：</span>{renderValue(selectedScenario.smartGoal)}</p>
@@ -372,4 +372,3 @@ export function ThreadCreateWorkflowForm({
     </Card>
   );
 }
-

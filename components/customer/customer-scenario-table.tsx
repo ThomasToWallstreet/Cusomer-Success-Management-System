@@ -1,12 +1,13 @@
 ﻿"use client";
 
+import Link from "next/link";
 import { History, Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
 
 import {
   createCustomerScenarioAction,
   deleteCustomerScenarioAction,
-  updateCustomerScenarioAlignmentAction,
   updateCustomerScenarioAction,
+  updateCustomerScenarioAlignmentAction,
 } from "@/app/(dashboard)/customer-management/actions";
 import { CustomerScenarioForm } from "@/components/customer/customer-scenario-form";
 import { DragScrollContainer } from "@/components/shared/drag-scroll-container";
@@ -29,6 +30,7 @@ type ScenarioRow = {
   customerId: string;
   customer: { id: string; name: string };
   name: string;
+  keyScenarioDescription: string | null;
   businessNeedAnalysis: string | null;
   personalNeeds: string | null;
   smartGoal: string | null;
@@ -41,6 +43,12 @@ type ScenarioRow = {
     alignedUpdatedAt: Date | string;
     alignedEvidence: string;
     createdAt: Date | string;
+  }>;
+  attachments?: Array<{
+    id: string;
+    originalName: string;
+    fileUrl: string;
+    fileSize: number;
   }>;
   note: string | null;
 };
@@ -110,11 +118,12 @@ export function CustomerScenarioTable({
       ) : null}
 
       <DragScrollContainer showHint>
-        <table className="w-full min-w-[1200px] text-[13px] leading-5">
+        <table className="w-full min-w-[1460px] text-[13px] leading-5">
           <thead className="bg-muted/40">
             <tr className="[&>th]:border-b [&>th]:border-r [&>th]:border-border/70 [&>th]:px-2 [&>th]:py-2.5 [&>th]:text-center [&>th]:align-middle [&>th]:font-semibold [&>th:last-child]:border-r-0">
               <th>客户名称</th>
               <th>场景名称</th>
+              <th>关键场景说明</th>
               <th>客户业务需求分析</th>
               <th>关键人的个人需求</th>
               <th>客户成功目标（SMART）</th>
@@ -132,9 +141,23 @@ export function CustomerScenarioTable({
                 >
                   <td className="text-left">{row.customer.name}</td>
                   <td className="font-medium">{row.name}</td>
-                  <td className="max-w-[220px] whitespace-pre-wrap break-words text-left align-top">{row.businessNeedAnalysis || "-"}</td>
+                  <td className="max-w-[220px] whitespace-pre-wrap break-words text-left align-top">{row.keyScenarioDescription || "-"}</td>
+                  <td className="max-w-[260px] whitespace-pre-wrap break-words text-left align-top">
+                    <div>{row.businessNeedAnalysis || "-"}</div>
+                    {(row.attachments || []).length ? (
+                      <div className="mt-2 space-y-1 border-t border-border/60 pt-2 text-xs">
+                        {(row.attachments || []).map((attachment) => (
+                          <div key={attachment.id}>
+                            <Link href={attachment.fileUrl} target="_blank" className="text-primary underline-offset-2 hover:underline">
+                              {attachment.originalName}
+                            </Link>
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
+                  </td>
                   <td className="max-w-[220px] whitespace-pre-wrap break-words text-left align-top">{row.personalNeeds || "-"}</td>
-                  <td className="max-w-[220px] whitespace-pre-wrap break-words text-left align-top">{row.smartGoal || "-"}</td>
+                  <td className="max-w-[320px] whitespace-pre-wrap break-words text-left align-top">{row.smartGoal || "-"}</td>
                   <td>
                     <div className="flex flex-col items-center gap-1">
                       <div className="flex items-center gap-2">
@@ -248,11 +271,13 @@ export function CustomerScenarioTable({
                                 id: row.id,
                                 customerId: row.customerId,
                                 name: row.name,
+                                keyScenarioDescription: row.keyScenarioDescription,
                                 businessNeedAnalysis: row.businessNeedAnalysis,
                                 personalNeeds: row.personalNeeds,
                                 smartGoal: row.smartGoal,
                                 alignedWithCustomer: row.alignedWithCustomer,
                                 note: row.note,
+                                attachments: row.attachments,
                               }}
                             />
                           </DialogContent>
@@ -272,7 +297,7 @@ export function CustomerScenarioTable({
               ))
             ) : (
               <tr>
-                <td colSpan={canEdit ? 8 : 7} className="py-8 text-center text-sm text-muted-foreground">
+                <td colSpan={canEdit ? 9 : 8} className="py-8 text-center text-sm text-muted-foreground">
                   暂无关键场景清单数据。
                 </td>
               </tr>
@@ -283,4 +308,3 @@ export function CustomerScenarioTable({
     </div>
   );
 }
-

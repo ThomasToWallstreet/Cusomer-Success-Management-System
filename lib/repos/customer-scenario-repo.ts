@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/db";
+﻿import { prisma } from "@/lib/db";
 import type {
   CreateCustomerScenarioInput,
   UpdateCustomerScenarioAlignmentInput,
@@ -26,6 +26,7 @@ export async function listCustomerScenarioItems(scope?: { customerIds?: string[]
         ? {
             OR: [
               { name: { contains: scope.keyword, mode: "insensitive" } },
+              { keyScenarioDescription: { contains: scope.keyword, mode: "insensitive" } },
               { businessNeedAnalysis: { contains: scope.keyword, mode: "insensitive" } },
               { customer: { name: { contains: scope.keyword, mode: "insensitive" } } },
             ],
@@ -39,6 +40,9 @@ export async function listCustomerScenarioItems(scope?: { customerIds?: string[]
       alignmentHistories: {
         orderBy: [{ alignedUpdatedAt: "desc" }, { createdAt: "desc" }],
       },
+      attachments: {
+        orderBy: [{ createdAt: "desc" }],
+      },
     },
     orderBy: [{ customer: { name: "asc" } }, { name: "asc" }],
   });
@@ -48,6 +52,11 @@ export async function listCustomerScenarioItemsByCustomerIds(customerIds: string
   if (!customerIds.length) return [];
   return prisma.customerScenarioItem.findMany({
     where: { customerId: { in: customerIds } },
+    include: {
+      attachments: {
+        orderBy: [{ createdAt: "desc" }],
+      },
+    },
     orderBy: [{ customerId: "asc" }, { name: "asc" }],
   });
 }
@@ -59,6 +68,9 @@ export async function getCustomerScenarioItemById(id: string) {
       customer: {
         select: { id: true, name: true },
       },
+      attachments: {
+        orderBy: [{ createdAt: "desc" }],
+      },
     },
   });
 }
@@ -68,6 +80,7 @@ export async function createCustomerScenarioItem(input: CreateCustomerScenarioIn
     data: {
       customerId: input.customerId,
       name: input.name,
+      keyScenarioDescription: toNullable(input.keyScenarioDescription),
       businessNeedAnalysis: toNullable(input.businessNeedAnalysis),
       personalNeeds: toNullable(input.personalNeeds),
       smartGoal: toNullable(input.smartGoal),
@@ -83,6 +96,7 @@ export async function updateCustomerScenarioItem(input: UpdateCustomerScenarioIn
     data: {
       customerId: input.customerId,
       name: input.name,
+      keyScenarioDescription: toNullable(input.keyScenarioDescription),
       businessNeedAnalysis: toNullable(input.businessNeedAnalysis),
       personalNeeds: toNullable(input.personalNeeds),
       smartGoal: toNullable(input.smartGoal),

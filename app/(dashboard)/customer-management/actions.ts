@@ -1,4 +1,4 @@
-﻿"use server";
+"use server";
 
 import { revalidatePath } from "next/cache";
 
@@ -54,6 +54,11 @@ import {
   updateCustomerListEntrySchema,
 } from "@/lib/validators/customer-management";
 import { listCustomerIdsByManager } from "@/lib/repos/manager-assignment-repo";
+import {
+  deleteScenarioAttachmentFiles,
+  getScenarioAttachmentFiles,
+  saveScenarioAttachments,
+} from "@/lib/services/customer-scenario-attachment-service";
 import { listThreads, updateThreadSection } from "@/lib/repos/thread-repo";
 import { deriveOrgChangesFromSatisfactionStates } from "@/lib/thread-goal-progress";
 import { isSupervisorRole, parseViewerRole } from "@/lib/viewer-role";
@@ -465,6 +470,7 @@ export async function createCustomerScenarioAction(formData: FormData) {
   const parsed = createCustomerScenarioSchema.safeParse({
     customerId: formData.get("customerId"),
     name: formData.get("name"),
+    keyScenarioDescription: formData.get("keyScenarioDescription"),
     businessNeedAnalysis: formData.get("businessNeedAnalysis"),
     personalNeeds: formData.get("personalNeeds"),
     smartGoal: formData.get("smartGoal"),
@@ -475,7 +481,9 @@ export async function createCustomerScenarioAction(formData: FormData) {
     throw new Error(parsed.error.issues[0]?.message || "新增关键场景清单失败");
   }
   await assertCustomerScopedPermission(formData, parsed.data.customerId);
-  await createCustomerScenarioItem(parsed.data);
+  const created = await createCustomerScenarioItem(parsed.data);
+  const attachments = getScenarioAttachmentFiles(formData);
+  await saveScenarioAttachments(created.id, attachments);
   revalidatePath("/customer-management");
   revalidatePath("/threads/new");
 }
@@ -485,6 +493,7 @@ export async function updateCustomerScenarioAction(formData: FormData) {
     id: formData.get("id"),
     customerId: formData.get("customerId"),
     name: formData.get("name"),
+    keyScenarioDescription: formData.get("keyScenarioDescription"),
     businessNeedAnalysis: formData.get("businessNeedAnalysis"),
     personalNeeds: formData.get("personalNeeds"),
     smartGoal: formData.get("smartGoal"),
@@ -501,6 +510,8 @@ export async function updateCustomerScenarioAction(formData: FormData) {
   await assertCustomerScopedPermission(formData, existing.customerId);
   await assertCustomerScopedPermission(formData, parsed.data.customerId);
   await updateCustomerScenarioItem(parsed.data);
+  const attachments = getScenarioAttachmentFiles(formData);
+  await saveScenarioAttachments(parsed.data.id, attachments);
   revalidatePath("/customer-management");
   revalidatePath("/threads/new");
 }
@@ -517,6 +528,7 @@ export async function deleteCustomerScenarioAction(formData: FormData) {
     throw new Error("关键场景清单不存在或已删除");
   }
   await assertCustomerScopedPermission(formData, existing.customerId);
+  await deleteScenarioAttachmentFiles(existing.attachments || []);
   await deleteCustomerScenarioItem(parsed.data.id);
   revalidatePath("/customer-management");
   revalidatePath("/threads/new");

@@ -1,4 +1,4 @@
-import { Prisma } from "@prisma/client";
+﻿import { Prisma } from "@prisma/client";
 
 import { prisma } from "@/lib/db";
 import type {
@@ -75,7 +75,6 @@ export async function createCustomerProjectItem(input: CreateCustomerProjectInpu
       targetDescription: toNullable(input.targetDescription),
       businessStage: toNullable(input.businessStage),
       businessGoalAchieved: toNullable(input.businessGoalAchieved),
-      keyScenarioDescription: toNullable(input.keyScenarioDescription),
       note: toNullable(input.note),
     },
   });
@@ -92,7 +91,6 @@ export async function updateCustomerProjectItem(input: UpdateCustomerProjectInpu
       targetDescription: toNullable(input.targetDescription),
       businessStage: toNullable(input.businessStage),
       businessGoalAchieved: toNullable(input.businessGoalAchieved),
-      keyScenarioDescription: toNullable(input.keyScenarioDescription),
       note: toNullable(input.note),
     },
   });

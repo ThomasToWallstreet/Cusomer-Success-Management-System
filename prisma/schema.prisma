@@ -142,36 +142,52 @@ model CustomerProjectBusinessGoalHistory {
 }
 
 model CustomerScenarioItem {
-  id                   String   @id @default(cuid())
-  customerId           String
-  name                 String
-  businessNeedAnalysis String?
-  personalNeeds        String?
-  smartGoal            String?
-  alignedWithCustomer  String?
-  alignedUpdatedAt     DateTime?
-  alignedEvidence      String?
-  note                 String?
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
-  customer             Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  alignmentHistories   CustomerScenarioAlignmentHistory[]
-  scenarios            KeySuccessScenario[]
+  id                     String   @id @default(cuid())
+  customerId             String
+  name                   String
+  keyScenarioDescription String?
+  businessNeedAnalysis   String?
+  personalNeeds          String?
+  smartGoal              String?
+  alignedWithCustomer    String?
+  alignedUpdatedAt       DateTime?
+  alignedEvidence        String?
+  note                   String?
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+  customer               Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  alignmentHistories     CustomerScenarioAlignmentHistory[]
+  attachments            CustomerScenarioAttachment[]
+  scenarios              KeySuccessScenario[]
 
   @@unique([customerId, name])
   @@index([customerId])
 }
 
 model CustomerScenarioAlignmentHistory {
-  id                String               @id @default(cuid())
-  scenarioItemId    String
+  id                  String               @id @default(cuid())
+  scenarioItemId      String
   alignedWithCustomer String
-  alignedUpdatedAt  DateTime
-  alignedEvidence   String
-  createdAt         DateTime             @default(now())
-  scenarioItem      CustomerScenarioItem @relation(fields: [scenarioItemId], references: [id], onDelete: Cascade)
+  alignedUpdatedAt    DateTime
+  alignedEvidence     String
+  createdAt           DateTime             @default(now())
+  scenarioItem        CustomerScenarioItem @relation(fields: [scenarioItemId], references: [id], onDelete: Cascade)
 
   @@index([scenarioItemId, alignedUpdatedAt])
+}
+
+model CustomerScenarioAttachment {
+  id             String               @id @default(cuid())
+  scenarioItemId String
+  originalName   String
+  storedName     String
+  fileUrl        String
+  mimeType       String?
+  fileSize       Int
+  createdAt      DateTime             @default(now())
+  scenarioItem   CustomerScenarioItem @relation(fields: [scenarioItemId], references: [id], onDelete: Cascade)
+
+  @@index([scenarioItemId, createdAt])
 }
 
 model ManagerCustomerAssignment {

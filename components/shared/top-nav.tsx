@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 
@@ -13,10 +13,16 @@ const navItems = [
   { href: "/my-account", label: "我的账号" },
 ];
 
-export function TopNav({ showAccountAdmin }: { showAccountAdmin: boolean }) {
+export function TopNav({
+  showAccountAdmin,
+  role,
+  managerName,
+}: {
+  showAccountAdmin: boolean;
+  role: "supervisor" | "manager";
+  managerName?: string;
+}) {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const managerName = searchParams.get("managerName");
 
   const items = showAccountAdmin
     ? [...navItems, { href: "/account-management", label: "账号管理" }]
@@ -37,9 +43,12 @@ export function TopNav({ showAccountAdmin }: { showAccountAdmin: boolean }) {
           >
             <Link
               href={
-                managerName && item.href !== "/account-management" && item.href !== "/my-account"
-                  ? `${item.href}?${new URLSearchParams({ managerName }).toString()}`
-                  : item.href
+                item.href === "/account-management" || item.href === "/my-account"
+                  ? item.href
+                  : `${item.href}?${new URLSearchParams({
+                      role,
+                      ...(managerName ? { managerName } : {}),
+                    }).toString()}`
               }
             >
               {item.label}

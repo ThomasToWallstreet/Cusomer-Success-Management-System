@@ -61,37 +61,33 @@ import {
 } from "@/lib/services/customer-scenario-attachment-service";
 import { listThreads, updateThreadSection } from "@/lib/repos/thread-repo";
 import { deriveOrgChangesFromSatisfactionStates } from "@/lib/thread-goal-progress";
-import { isSupervisorRole, parseViewerRole } from "@/lib/viewer-role";
+import { assertSupervisorAction, getActionAuth } from "@/lib/auth/action-auth";
 
-function assertSupervisor(formData: FormData) {
-  const role = parseViewerRole(String(formData.get("role") || ""));
-  if (!isSupervisorRole(role)) {
-    throw new Error("仅大客户服务主管可维护客户清单");
-  }
+async function assertSupervisor() {
+  await assertSupervisorAction();
 }
 
-async function assertCustomerScopedPermission(formData: FormData, customerId: string) {
-  const role = parseViewerRole(String(formData.get("role") || ""));
-  if (isSupervisorRole(role)) {
+async function assertCustomerScopedPermission(_formData: FormData, customerId: string) {
+  const user = await getActionAuth();
+  if (user.role === "SUPERVISOR") {
     return;
   }
-  const managerName = String(formData.get("managerName") || "").trim();
-  if (!managerName || managerName === "ALL") {
+  if (!user.managerName) {
     throw new Error("经理信息缺失，无法维护关键人");
   }
-  const allowedCustomerIds = await listCustomerIdsByManager(managerName);
+  const allowedCustomerIds = await listCustomerIdsByManager(user.managerName);
   if (!allowedCustomerIds.includes(customerId)) {
     throw new Error("仅可维护本人负责客户的主数据");
   }
 }
 
-export async function upsertAssignmentAction(formData: FormData) {
-  assertSupervisor(formData);
+export async function upsertAssignmentAction() {
+  await assertSupervisor();
   throw new Error("标准化客户清单请通过 CSV 全量导入维护");
 }
 
 export async function createCustomerListEntryAction(formData: FormData) {
-  assertSupervisor(formData);
+  await assertSupervisor();
   const parsed = createCustomerListEntrySchema.safeParse({
     customerName: formData.get("customerName"),
     groupBranch: formData.get("groupBranch"),
@@ -122,7 +118,7 @@ export async function createCustomerListEntryAction(formData: FormData) {
 }
 
 export async function updateCustomerListEntryAction(formData: FormData) {
-  assertSupervisor(formData);
+  await assertSupervisor();
   const parsed = updateCustomerListEntrySchema.safeParse({
     id: formData.get("id"),
     customerName: formData.get("customerName"),
@@ -154,7 +150,7 @@ export async function updateCustomerListEntryAction(formData: FormData) {
 }
 
 export async function deleteAssignmentAction(formData: FormData) {
-  assertSupervisor(formData);
+  await assertSupervisor();
   const parsed = deleteCustomerListRowSchema.safeParse({
     id: formData.get("id"),
   });
@@ -169,7 +165,7 @@ export async function deleteAssignmentAction(formData: FormData) {
 }
 
 export async function importAssignmentCsvAction(formData: FormData) {
-  assertSupervisor(formData);
+  await assertSupervisor();
   const parsed = importCustomerListCsvSchema.safeParse({
     file: formData.get("file"),
   });

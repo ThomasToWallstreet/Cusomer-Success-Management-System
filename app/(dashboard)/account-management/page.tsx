@@ -1,17 +1,16 @@
-import { createUserAction, resetUserPasswordAction, toggleUserActiveAction } from "@/app/(dashboard)/account-management/actions";
+import { createUserAction, deleteUserAction, resetUserPasswordAction, toggleUserActiveAction } from "@/app/(dashboard)/account-management/actions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { listUsers } from "@/lib/auth/account-service";
 import { requireSupervisor } from "@/lib/auth/server";
-import { listManagerNames } from "@/lib/repos/manager-assignment-repo";
 
 export const dynamic = "force-dynamic";
 
 export default async function AccountManagementPage() {
   await requireSupervisor();
-  const [users, managerNames] = await Promise.all([listUsers(), listManagerNames()]);
+  const users = await listUsers();
 
   return (
     <div className="space-y-4">
@@ -20,12 +19,13 @@ export default async function AccountManagementPage() {
           <CardTitle>账号管理</CardTitle>
         </CardHeader>
         <CardContent>
-          <form action={createUserAction} className="grid gap-3 md:grid-cols-6">
+          <form action={createUserAction} className="grid gap-3 md:grid-cols-4">
             <div className="space-y-1 md:col-span-1">
-              <Label htmlFor="role">角色</Label>
-              <select id="role" name="role" className="h-9 w-full rounded-md border px-2 text-sm" defaultValue="MANAGER">
-                <option value="MANAGER">经理</option>
-                <option value="SUPERVISOR">主管</option>
+              <Label htmlFor="accountType">账号类型</Label>
+              <select id="accountType" name="accountType" className="h-9 w-full rounded-md border px-2 text-sm" defaultValue="MANAGER">
+                <option value="MANAGER">大客户服务经理</option>
+                <option value="SUPERVISOR_LEAD">大客户服务主管</option>
+                <option value="SUPERVISOR_ADMIN">管理员</option>
               </select>
             </div>
             <div className="space-y-1 md:col-span-1">
@@ -33,23 +33,13 @@ export default async function AccountManagementPage() {
               <Input id="username" name="username" required />
             </div>
             <div className="space-y-1 md:col-span-1">
-              <Label htmlFor="displayName">显示名</Label>
-              <Input id="displayName" name="displayName" required />
-            </div>
-            <div className="space-y-1 md:col-span-1">
               <Label htmlFor="password">初始密码</Label>
               <Input id="password" name="password" type="password" required />
             </div>
             <div className="space-y-1 md:col-span-1">
-              <Label htmlFor="managerName">绑定经理名</Label>
-              <select id="managerName" name="managerName" className="h-9 w-full rounded-md border px-2 text-sm" defaultValue="">
-                <option value="">不绑定</option>
-                {managerNames.map((name) => (
-                  <option key={name} value={name}>
-                    {name}
-                  </option>
-                ))}
-              </select>
+              <Label htmlFor="managerName">大客户服务经理</Label>
+              <Input id="managerName" name="managerName" placeholder="例如：刘阳（仅经理账号必填）" />
+              <p className="text-xs text-muted-foreground">经理账号会按此姓名自动绑定客户清单中的“大客户服务经理”映射。</p>
             </div>
             <div className="flex items-end md:col-span-1">
               <Button type="submit" size="sm" className="w-full">
@@ -71,7 +61,7 @@ export default async function AccountManagementPage() {
                 <div>
                   <p className="font-medium">{user.displayName}（{user.username}）</p>
                   <p className="text-muted-foreground">
-                    角色：{user.role === "SUPERVISOR" ? "主管" : "经理"}
+                    账号类型：{user.role === "SUPERVISOR" ? (user.displayName === "管理员" ? "管理员" : "大客户服务主管") : "大客户服务经理"}
                     {user.managerBinding?.managerName ? ` / 绑定经理：${user.managerBinding.managerName}` : ""}
                     {user.isActive ? " / 启用" : " / 禁用"}
                   </p>
@@ -89,6 +79,12 @@ export default async function AccountManagementPage() {
                     <Input name="password" type="password" placeholder="新密码" className="h-8 w-36" required />
                     <Button type="submit" size="sm" variant="outline">
                       重置密码
+                    </Button>
+                  </form>
+                  <form action={deleteUserAction}>
+                    <input type="hidden" name="userId" value={user.id} />
+                    <Button type="submit" size="sm" variant="destructive">
+                      删除账号
                     </Button>
                   </form>
                 </div>

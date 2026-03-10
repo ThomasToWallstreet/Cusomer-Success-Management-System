@@ -10,8 +10,8 @@ import { listCustomerProjectItems } from "@/lib/repos/customer-project-repo";
 import { listCustomerScenarioItems } from "@/lib/repos/customer-scenario-repo";
 import { listCustomerListEntries } from "@/lib/repos/customer-list-repo";
 import { listCustomers, listCustomersByManager } from "@/lib/repos/customer-repo";
-import { listCustomerIdsByManager, resolveCurrentManager } from "@/lib/repos/manager-assignment-repo";
-import { isSupervisorRole, parseViewerRole } from "@/lib/viewer-role";
+import { listCustomerIdsByManager } from "@/lib/repos/manager-assignment-repo";
+import { resolveViewerContext } from "@/lib/auth/viewer-context";
 
 export const dynamic = "force-dynamic";
 
@@ -27,17 +27,14 @@ export default async function CustomerManagementPage({
   searchParams: Promise<SearchParams>;
 }) {
   const query = await searchParams;
-  const role = parseViewerRole(getOne(query.role));
   const managerQuery = getOne(query.managerName);
+  const { role, managerName, isSupervisor } = await resolveViewerContext(managerQuery);
   const rawTab = getOne(query.tab);
   const tab =
     rawTab === "contacts" || rawTab === "projects" || rawTab === "scenarios"
       ? rawTab
       : "customers";
-  const { managerName } = await resolveCurrentManager(managerQuery, {
-    allowAll: isSupervisorRole(role),
-  });
-  const scopedManagerName = isSupervisorRole(role)
+  const scopedManagerName = isSupervisor
     ? undefined
     : managerName && managerName !== "ALL"
       ? managerName
@@ -45,11 +42,11 @@ export default async function CustomerManagementPage({
   const rows = await listCustomerListEntries(
     scopedManagerName ? { managerName: scopedManagerName } : undefined,
   );
-  const allowedCustomerIds = isSupervisorRole(role)
+  const allowedCustomerIds = isSupervisor
     ? undefined
     : await listCustomerIdsByManager(managerName === "ALL" ? undefined : managerName);
   const [customerOptions, contactRows, projectRows, scenarioRows] = await Promise.all([
-    isSupervisorRole(role)
+    isSupervisor
       ? listCustomers()
       : listCustomersByManager(managerName === "ALL" ? undefined : managerName),
     listCustomerContacts({
@@ -62,7 +59,7 @@ export default async function CustomerManagementPage({
       customerIds: allowedCustomerIds,
     }),
   ]);
-  const canEditCustomerList = isSupervisorRole(role);
+  const canEditCustomerList = isSupervisor;
   const canEditContacts = true;
   const baseQuery = new URLSearchParams({
     ...(managerName ? { managerName } : {}),

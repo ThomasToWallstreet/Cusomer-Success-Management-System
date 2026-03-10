@@ -71,6 +71,12 @@ export async function setUserActive(userId: string, isActive: boolean) {
   });
 }
 
+export async function deleteUser(userId: string) {
+  await prisma.user.delete({
+    where: { id: userId },
+  });
+}
+
 export async function updateSelfPassword(userId: string, oldPassword: string, nextPassword: string) {
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) {

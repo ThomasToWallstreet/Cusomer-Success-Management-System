@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { assertSupervisorAction, getActionAuth } from "@/lib/auth/action-auth";
 import {
   createUser,
+  deleteUser,
   resetUserPassword,
   setUserActive,
   updateSelfPassword,
@@ -14,28 +15,35 @@ import { revokeAllUserSessions } from "@/lib/auth/session";
 export async function createUserAction(formData: FormData) {
   await assertSupervisorAction();
 
-  const role = String(formData.get("role") || "").trim();
+  const accountType = String(formData.get("accountType") || "MANAGER").trim();
   const username = String(formData.get("username") || "").trim();
-  const displayName = String(formData.get("displayName") || "").trim();
   const password = String(formData.get("password") || "").trim();
   const managerName = String(formData.get("managerName") || "").trim();
 
-  if (!username || !displayName || !password) {
-    throw new Error("请完整填写账号、显示名与初始密码");
+  if (!username || !password) {
+    throw new Error("请完整填写账号和初始密码");
   }
-  if (role !== "SUPERVISOR" && role !== "MANAGER") {
-    throw new Error("角色不合法");
+  if (accountType !== "MANAGER" && accountType !== "SUPERVISOR_LEAD" && accountType !== "SUPERVISOR_ADMIN") {
+    throw new Error("账号类型不合法");
   }
-  if (role === "MANAGER" && !managerName) {
-    throw new Error("经理账号必须绑定经理姓名");
+  if (accountType === "MANAGER" && !managerName) {
+    throw new Error("请填写大客户服务经理姓名");
   }
+
+  const role = accountType === "MANAGER" ? "MANAGER" : "SUPERVISOR";
+  const displayName =
+    accountType === "MANAGER"
+      ? managerName
+      : accountType === "SUPERVISOR_ADMIN"
+        ? "管理员"
+        : "大客户服务主管";
 
   await createUser({
     username,
     displayName,
     password,
     role,
-    managerName: role === "MANAGER" ? managerName : undefined,
+    managerName: accountType === "MANAGER" ? managerName : undefined,
   });
 
   revalidatePath("/account-management");
@@ -65,6 +73,20 @@ export async function toggleUserActiveAction(formData: FormData) {
   if (!active) {
     await revokeAllUserSessions(userId);
   }
+  revalidatePath("/account-management");
+}
+
+export async function deleteUserAction(formData: FormData) {
+  const currentUser = await assertSupervisorAction();
+  const userId = String(formData.get("userId") || "").trim();
+  if (!userId) {
+    throw new Error("参数缺失");
+  }
+  if (userId === currentUser.id) {
+    throw new Error("不允许删除当前登录账号");
+  }
+  await revokeAllUserSessions(userId);
+  await deleteUser(userId);
   revalidatePath("/account-management");
 }
 

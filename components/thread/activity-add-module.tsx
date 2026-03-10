@@ -11,7 +11,6 @@ import {
   GOAL_OPTIONS,
   HQ_ACTIVITY_OPTIONS,
   STATUS_OPTIONS,
-  addWeeks,
   makeActivityId,
   normalizeGoals,
   nowTimestampIso,

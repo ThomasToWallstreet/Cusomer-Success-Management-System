@@ -231,10 +231,6 @@ function getSubmittedHeadquarters(goal: GoalPlan) {
   return goal.headquartersActivities.filter((item) => item.selected);
 }
 
-function getSubmittedRegional(goal: GoalPlan) {
-  return goal.regionalActivities.filter((item) => hasRegionalContent(item));
-}
-
 function startOfWeek(date: Date) {
   const next = new Date(date);
   const day = next.getDay();
@@ -344,22 +340,59 @@ export function ExecutionWorkbench({
   const managerName = embedded ? "" : searchParams.get("managerName") || "";
   const role = embedded ? "" : searchParams.get("role") || "";
   const execution = toRecord(executionSection);
-  const initialGoals = normalizeGoals(execution).filter((goal) => !goalKeyFilter || goal.goalKey === goalKeyFilter);
-  const [goals, setGoals] = useState<GoalPlan[]>(initialGoals);
-  const [expandedGoalKey, setExpandedGoalKey] = useState<string>("");
-  const [expandedSectionType, setExpandedSectionType] = useState<"headquarters" | "regional" | null>(null);
-  
+  const savedAction = embedded ? "" : searchParams.get("savedAction") || "";
+  const rawWeekOffset = Number(embedded ? 0 : searchParams.get("weekOffset") || "0");
+  const initialWeekOffset = Number.isFinite(rawWeekOffset) ? Math.max(-52, Math.min(52, Math.trunc(rawWeekOffset))) : 0;
+  const initialSelectedWeekKey = toDateKey(startOfWeek(addWeeks(new Date(), initialWeekOffset)));
+  const [initialSetup] = useState(() => {
+    const baseGoals = normalizeGoals(execution).filter((goal) => !goalKeyFilter || goal.goalKey === goalKeyFilter);
+    if (embedded || initialMode !== "addRegional" || !goalKeyFilter) {
+      return {
+        goals: baseGoals,
+        expandedGoalKey: "",
+        expandedSectionType: null as "headquarters" | "regional" | null,
+        expandedRegionalActivityId: {} as Record<string, string | null>,
+        autoAdded: false,
+      };
+    }
+
+    const newActivity = {
+      ...emptyRegionalActivity(`${goalKeyFilter}-regional`),
+      clarifiedAt: nowTimestampIso(),
+      planStart: initialSelectedWeekKey,
+    };
+
+    return {
+      goals: baseGoals.map((goal) =>
+        goal.goalKey === goalKeyFilter
+          ? {
+              ...goal,
+              regionalActivities: [...goal.regionalActivities, newActivity],
+            }
+          : goal,
+      ),
+      expandedGoalKey: goalKeyFilter,
+      expandedSectionType: "regional" as const,
+      expandedRegionalActivityId: { [goalKeyFilter]: newActivity.id },
+      autoAdded: true,
+    };
+  });
+
+  const [goals, setGoals] = useState<GoalPlan[]>(initialSetup.goals);
+  const [expandedGoalKey, setExpandedGoalKey] = useState<string>(initialSetup.expandedGoalKey);
+  const [expandedSectionType, setExpandedSectionType] = useState<"headquarters" | "regional" | null>(
+    initialSetup.expandedSectionType,
+  );
   const [expandedHeadquartersActivityId, setExpandedHeadquartersActivityId] = useState<Record<string, string | null>>({}); // activityKey or "new"
   const [newHeadquartersDraft, setNewHeadquartersDraft] = useState<
     Record<string, { activityKey: string; planStart: string; status: ActivityStatus; note: string } | null>
   >({});
-  const [expandedRegionalActivityId, setExpandedRegionalActivityId] = useState<Record<string, string | null>>({});
-  const savedAction = embedded ? "" : searchParams.get("savedAction") || "";
-  const rawWeekOffset = Number(embedded ? 0 : searchParams.get("weekOffset") || "0");
-  const initialWeekOffset = Number.isFinite(rawWeekOffset) ? Math.max(-52, Math.min(52, Math.trunc(rawWeekOffset))) : 0;
+  const [expandedRegionalActivityId, setExpandedRegionalActivityId] = useState<Record<string, string | null>>(
+    initialSetup.expandedRegionalActivityId,
+  );
   const [selectedWeekOffset, setSelectedWeekOffset] = useState<number>(initialWeekOffset);
   const selectedWeekKey = useMemo(() => toDateKey(startOfWeek(addWeeks(new Date(), selectedWeekOffset))), [selectedWeekOffset]);
-  const [autoAdded, setAutoAdded] = useState(false);
+  const [autoAdded] = useState(initialSetup.autoAdded);
   void showSavedDialog;
 
   const updateGoal = (goalKey: string, updater: (goal: GoalPlan) => GoalPlan) => {
@@ -389,34 +422,18 @@ export function ExecutionWorkbench({
       router.replace(next ? `${pathname}?${next}` : pathname);
     }, 1500);
     return () => window.clearTimeout(timer);
-  }, [pathname, router, savedAction, searchParams]);
+  }, [embedded, pathname, router, savedAction, searchParams]);
 
   useEffect(() => {
     if (embedded) return;
-    if (initialMode !== "addRegional") return;
-    if (!goalKeyFilter) return;
-    if (autoAdded) return;
-
-    const newActivity = {
-      ...emptyRegionalActivity(`${goalKeyFilter}-regional`),
-      clarifiedAt: nowTimestampIso(),
-      planStart: selectedWeekKey,
-    };
-
-    updateGoal(goalKeyFilter, (targetGoal) => ({
-      ...targetGoal,
-      regionalActivities: [...targetGoal.regionalActivities, newActivity],
-    }));
-    setExpandedGoalKey(goalKeyFilter);
-    setExpandedSectionType("regional");
-    setExpandedRegionalActivityId((prev) => ({ ...prev, [goalKeyFilter]: newActivity.id }));
-    setAutoAdded(true);
+    if (!autoAdded) return;
+    if (searchParams.get("mode") !== "addRegional") return;
 
     const params = new URLSearchParams(searchParams.toString());
     params.delete("mode");
     const next = params.toString();
     router.replace(next ? `${pathname}?${next}` : pathname);
-  }, [autoAdded, embedded, goalKeyFilter, initialMode, pathname, router, searchParams, selectedWeekKey]);
+  }, [autoAdded, embedded, pathname, router, searchParams]);
 
   const content = (
     <div className="space-y-3">

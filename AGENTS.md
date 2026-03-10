@@ -90,3 +90,10 @@ alwaysApply: true
   - 开发环境（`docker-compose.dev.yml`）：默认 `docker compose -f docker-compose.dev.yml restart web`
   - 生产环境（`docker-compose.yml`）：代码变更默认 `docker compose -f docker-compose.yml up -d --build web`
 - 若判断为“不需要”，也必须明确写出“不需要”的结论与依据，不得省略该行。
+
+## 编码防污染强制条款（新增）
+- 中文源码（`.ts` / `.tsx` / `.prisma`）只允许 `apply_patch` 编辑。
+- 如 `apply_patch` 失败，必须暂停并向 Thomas 说明，不得改用覆盖写入。
+- 任何结构改动前后，必须执行：`node scripts/check-encoding.mjs`。
+- 提交前必须执行：`node scripts/check-encoding.mjs --staged`，未通过禁止提交。
+- 每次最终交付必须汇报：编码修复结果、BOM 清理结果、中文字段回归核对结果。

@@ -1,4 +1,4 @@
-﻿export type GoalKey = "BUSINESS_GROWTH" | "ORG_BREAKTHROUGH" | "VALUE_REALIZATION";
+export type GoalKey = "BUSINESS_GROWTH" | "ORG_BREAKTHROUGH" | "VALUE_REALIZATION";
 
 export type ActivityStatus = "TODO" | "IN_PROGRESS" | "DONE" | "BLOCKED";
 

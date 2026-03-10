@@ -55,6 +55,11 @@ enum ExecutionActionChangeSource {
   SYSTEM_SYNC
 }
 
+enum UserRole {
+  SUPERVISOR
+  MANAGER
+}
+
 model Customer {
   id               String               @id @default(cuid())
   name             String               @unique
@@ -78,8 +83,8 @@ model CustomerContact {
   name                String
   department          String?
   level               String?
-  satisfactionCurrent String   @default("无感知")
-  satisfactionTarget  String   @default("认可")
+  satisfactionCurrent String   @default("\u65e0\u611f\u77e5")
+  satisfactionTarget  String   @default("\u8ba4\u53ef")
   satisfactionUpdatedAt DateTime?
   satisfactionEvidence String?
   note                String?
@@ -382,3 +387,40 @@ model CustomerGoalWeeklySnapshot {
   @@index([weekStart])
   @@index([customerId, weekStart])
 }
+
+
+model User {
+  id                 String              @id @default(cuid())
+  username           String              @unique
+  passwordHash       String
+  role               UserRole
+  displayName        String
+  isActive           Boolean             @default(true)
+  mustChangePassword Boolean             @default(false)
+  lastLoginAt        DateTime?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  sessions           UserSession[]
+  managerBinding     UserManagerBinding?
+
+  @@index([role, isActive])
+}
+
+model UserSession {
+  id               String   @id @default(cuid())
+  userId           String
+  sessionTokenHash String   @unique
+  expiresAt        DateTime
+  createdAt        DateTime @default(now())
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+}
+
+model UserManagerBinding {
+  id          String  @id @default(cuid())
+  userId      String  @unique
+  managerName String? @unique
+  user        User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+

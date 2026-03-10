@@ -1,4 +1,4 @@
-﻿import { z } from "zod";
+import { z } from "zod";
 import { businessStageValues } from "@/lib/constants/domain";
 
 export const createThreadSchema = z.object({

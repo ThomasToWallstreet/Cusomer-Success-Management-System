@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { History, Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
 

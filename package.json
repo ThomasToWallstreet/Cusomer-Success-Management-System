@@ -12,7 +12,11 @@
     "prisma:migrate:deploy": "prisma migrate deploy",
     "prisma:seed": "prisma db seed",
     "backfill:customer-id": "tsx scripts/backfill-customer-id.ts",
-    "import:customer-list": "tsx scripts/import-customer-list.ts"
+    "import:customer-list": "tsx scripts/import-customer-list.ts",
+    "auth:bootstrap": "tsx scripts/bootstrap-auth.ts",
+    "check:encoding": "node scripts/check-encoding.mjs",
+    "hooks:install": "node scripts/setup-githooks.mjs",
+    "prepare": "npm run hooks:install"
   },
   "dependencies": {
     "@prisma/client": "^6.16.2",

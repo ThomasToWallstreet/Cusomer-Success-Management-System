@@ -10,17 +10,21 @@ const navItems = [
   { href: "/customer-management", label: "客户管理" },
   { href: "/threads", label: "客户成功计划" },
   { href: "/weekly-reports", label: "周报" },
+  { href: "/my-account", label: "我的账号" },
 ];
 
-export function TopNav() {
+export function TopNav({ showAccountAdmin }: { showAccountAdmin: boolean }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const managerName = searchParams.get("managerName");
-  const role = searchParams.get("role");
+
+  const items = showAccountAdmin
+    ? [...navItems, { href: "/account-management", label: "账号管理" }]
+    : navItems;
 
   return (
     <nav className="flex flex-wrap items-center gap-2">
-      {navItems.map((item) => {
+      {items.map((item) => {
         const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
 
         return (
@@ -33,11 +37,8 @@ export function TopNav() {
           >
             <Link
               href={
-                managerName || role
-                  ? `${item.href}?${new URLSearchParams({
-                      ...(managerName ? { managerName } : {}),
-                      ...(role ? { role } : {}),
-                    }).toString()}`
+                managerName && item.href !== "/account-management" && item.href !== "/my-account"
+                  ? `${item.href}?${new URLSearchParams({ managerName }).toString()}`
                   : item.href
               }
             >

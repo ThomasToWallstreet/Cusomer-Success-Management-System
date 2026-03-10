@@ -1,4 +1,4 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 
 import { AssignmentTable } from "@/components/customer/assignment-table";
 import { CustomerContactTable } from "@/components/customer/customer-contact-table";

@@ -1,4 +1,4 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 
@@ -7,6 +7,7 @@ import { PlanProgressModule } from "@/components/thread/plan-progress-module";
 import { ThreadDetailReadonly } from "@/components/thread/thread-detail-readonly";
 import { ThreadStepper } from "@/components/thread/thread-stepper";
 import { Button } from "@/components/ui/button";
+import { resolveViewerContext } from "@/lib/auth/viewer-context";
 import { getThreadDetail } from "@/lib/repos/thread-repo";
 import { cn } from "@/lib/utils";
 
@@ -44,8 +45,9 @@ export default async function ThreadDetailPage({
   const query = await searchParams;
   const tab = parseTab(getOne(query.tab));
   const savedAction = getOne(query.savedAction) || "";
-  const managerName = getOne(query.managerName);
-  const role = getOne(query.role);
+
+  const managerNameQuery = getOne(query.managerName);
+  const { role, managerName } = await resolveViewerContext(managerNameQuery);
 
   const thread = await getThreadDetail(id);
   if (!thread) notFound();
@@ -61,7 +63,6 @@ export default async function ThreadDetailPage({
     const params = new URLSearchParams({
       tab: nextTab,
       ...(managerName ? { managerName: String(managerName) } : {}),
-      ...(role ? { role: String(role) } : {}),
     });
     return `/threads/${thread.id}?${params.toString()}`;
   };
@@ -71,12 +72,10 @@ export default async function ThreadDetailPage({
       ? `/threads/customers/${thread.customerId}?${new URLSearchParams({
           scenarioId: thread.id,
           ...(managerName ? { managerName: String(managerName) } : {}),
-          ...(role ? { role: String(role) } : {}),
         }).toString()}`
-      : managerName || role
+      : managerName
         ? `/threads?${new URLSearchParams({
             ...(managerName ? { managerName: String(managerName) } : {}),
-            ...(role ? { role: String(role) } : {}),
           }).toString()}`
         : "/threads";
 

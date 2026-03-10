@@ -235,6 +235,64 @@ function getSubmittedRegional(goal: GoalPlan) {
   return goal.regionalActivities.filter((item) => hasRegionalContent(item));
 }
 
+function startOfWeek(date: Date) {
+  const next = new Date(date);
+  const day = next.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  next.setHours(0, 0, 0, 0);
+  next.setDate(next.getDate() + diff);
+  return next;
+}
+
+function addWeeks(date: Date, weeks: number) {
+  const next = new Date(date);
+  next.setDate(next.getDate() + weeks * 7);
+  return next;
+}
+
+function toDateKey(date: Date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+function parseDateKey(value: string) {
+  if (!value) return null;
+  const [y, m, d] = value.split("-").map((item) => Number(item));
+  if (!y || !m || !d) return null;
+  const date = new Date(y, m - 1, d);
+  if (Number.isNaN(date.getTime())) return null;
+  date.setHours(0, 0, 0, 0);
+  return date;
+}
+
+function weekKeyOfPlanStart(value: string) {
+  const date = parseDateKey(value);
+  if (!date) return "";
+  return toDateKey(startOfWeek(date));
+}
+
+function formatWeekRange(weekStartKey: string) {
+  const start = parseDateKey(weekStartKey);
+  if (!start) return "";
+  const end = new Date(start);
+  end.setDate(end.getDate() + 6);
+  const fmt = new Intl.DateTimeFormat("zh-CN", { month: "2-digit", day: "2-digit", timeZone: "Asia/Shanghai" });
+  return `${fmt.format(start)} - ${fmt.format(end)}`;
+}
+
+function filterRegionalByWeek(goal: GoalPlan, weekKey: string) {
+  const currentWeekKey = toDateKey(startOfWeek(new Date()));
+  return goal.regionalActivities.filter((item) => {
+    if (!item.planStart) return weekKey === currentWeekKey;
+    return weekKeyOfPlanStart(item.planStart) === weekKey;
+  });
+}
+
+function submittedRegionalByWeek(goal: GoalPlan, weekKey: string) {
+  return filterRegionalByWeek(goal, weekKey).filter((item) => hasRegionalContent(item));
+}
 function ExecutionSaveButton({ savedAction }: { savedAction: string | null }) {
   const { pending } = useFormStatus();
   const isSaved = savedAction === "save_execution";
@@ -270,6 +328,7 @@ export function ExecutionWorkbench({
   embedded = false,
   inputName = "executionSectionJson",
   goalKeyFilter,
+  initialMode,
 }: {
   threadId: string;
   executionSection: unknown;
@@ -277,6 +336,7 @@ export function ExecutionWorkbench({
   embedded?: boolean;
   inputName?: string;
   goalKeyFilter?: "BUSINESS_GROWTH" | "ORG_BREAKTHROUGH" | "VALUE_REALIZATION";
+  initialMode?: "addRegional";
 }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -288,14 +348,18 @@ export function ExecutionWorkbench({
   const [goals, setGoals] = useState<GoalPlan[]>(initialGoals);
   const [expandedGoalKey, setExpandedGoalKey] = useState<string>("");
   const [expandedSectionType, setExpandedSectionType] = useState<"headquarters" | "regional" | null>(null);
-  const [expandedHeadquartersGoalKey, setExpandedHeadquartersGoalKey] = useState<string>("");
+  
   const [expandedHeadquartersActivityId, setExpandedHeadquartersActivityId] = useState<Record<string, string | null>>({}); // activityKey or "new"
   const [newHeadquartersDraft, setNewHeadquartersDraft] = useState<
     Record<string, { activityKey: string; planStart: string; status: ActivityStatus; note: string } | null>
   >({});
   const [expandedRegionalActivityId, setExpandedRegionalActivityId] = useState<Record<string, string | null>>({});
   const savedAction = embedded ? "" : searchParams.get("savedAction") || "";
-  const savedGoalKey = embedded ? "" : searchParams.get("savedGoalKey") || "";
+  const rawWeekOffset = Number(embedded ? 0 : searchParams.get("weekOffset") || "0");
+  const initialWeekOffset = Number.isFinite(rawWeekOffset) ? Math.max(-52, Math.min(52, Math.trunc(rawWeekOffset))) : 0;
+  const [selectedWeekOffset, setSelectedWeekOffset] = useState<number>(initialWeekOffset);
+  const selectedWeekKey = useMemo(() => toDateKey(startOfWeek(addWeeks(new Date(), selectedWeekOffset))), [selectedWeekOffset]);
+  const [autoAdded, setAutoAdded] = useState(false);
   void showSavedDialog;
 
   const updateGoal = (goalKey: string, updater: (goal: GoalPlan) => GoalPlan) => {
@@ -307,9 +371,11 @@ export function ExecutionWorkbench({
     const params = new URLSearchParams(searchParams.toString());
     params.set("tab", "plan");
     params.set("panel", "execution");
+    params.set("weekOffset", String(selectedWeekOffset));
+    if (goalKeyFilter) params.set("goalKey", goalKeyFilter);
     params.delete("mode");
     return `${pathname}?${params.toString()}`;
-  }, [pathname, searchParams]);
+  }, [goalKeyFilter, pathname, searchParams, selectedWeekOffset]);
 
   useEffect(() => {
     if (embedded) return;
@@ -325,6 +391,33 @@ export function ExecutionWorkbench({
     return () => window.clearTimeout(timer);
   }, [pathname, router, savedAction, searchParams]);
 
+  useEffect(() => {
+    if (embedded) return;
+    if (initialMode !== "addRegional") return;
+    if (!goalKeyFilter) return;
+    if (autoAdded) return;
+
+    const newActivity = {
+      ...emptyRegionalActivity(`${goalKeyFilter}-regional`),
+      clarifiedAt: nowTimestampIso(),
+      planStart: selectedWeekKey,
+    };
+
+    updateGoal(goalKeyFilter, (targetGoal) => ({
+      ...targetGoal,
+      regionalActivities: [...targetGoal.regionalActivities, newActivity],
+    }));
+    setExpandedGoalKey(goalKeyFilter);
+    setExpandedSectionType("regional");
+    setExpandedRegionalActivityId((prev) => ({ ...prev, [goalKeyFilter]: newActivity.id }));
+    setAutoAdded(true);
+
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("mode");
+    const next = params.toString();
+    router.replace(next ? `${pathname}?${next}` : pathname);
+  }, [autoAdded, embedded, goalKeyFilter, initialMode, pathname, router, searchParams, selectedWeekKey]);
+
   const content = (
     <div className="space-y-3">
         <input type="hidden" name="id" value={threadId} />
@@ -333,26 +426,48 @@ export function ExecutionWorkbench({
         {!embedded ? <input type="hidden" name="redirectTo" value={redirectTo} /> : null}
         {!embedded ? <input type="hidden" name="changedBy" value={managerName || role || "unknown"} /> : null}
 
+        {!embedded ? (
+          <section className="rounded-md border bg-card p-2.5">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <p className="text-xs text-muted-foreground">周时间轴</p>
+                <p className="text-sm font-medium">
+                  {selectedWeekOffset === 0
+                    ? "当周"
+                    : selectedWeekOffset < 0
+                      ? `${Math.abs(selectedWeekOffset)}周前`
+                      : `${selectedWeekOffset}周后`}（{formatWeekRange(selectedWeekKey)}）</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button type="button" size="sm" variant="outline" className="h-7 px-2" onClick={() => setSelectedWeekOffset((prev) => prev - 1)}>上一周</Button>
+                <Button type="button" size="sm" variant={selectedWeekOffset === 0 ? "secondary" : "outline"} className="h-7 px-2" onClick={() => setSelectedWeekOffset(0)}>当周</Button>
+                <Button type="button" size="sm" variant="outline" className="h-7 px-2" onClick={() => setSelectedWeekOffset((prev) => prev + 1)}>下一周</Button>
+              </div>
+            </div>
+          </section>
+        ) : null}
+
         {goals.map((goal) => {
           const expanded = expandedGoalKey === goal.goalKey;
           const submittedHeadquarters = getSubmittedHeadquarters(goal);
-          const submittedRegional = getSubmittedRegional(goal);
+          const submittedRegional = submittedRegionalByWeek(goal, selectedWeekKey);
+          const weekRegionalActivities = filterRegionalByWeek(goal, selectedWeekKey);
           return (
-            <Card key={goal.goalKey} className="gap-3 py-2.5">
+            <Card key={goal.goalKey} className="gap-3 py-2.5 overflow-hidden">
               <CardHeader className="py-2 px-4">
                 <div className="flex w-full items-center justify-between gap-2">
                   <CardTitle className="text-sm font-semibold leading-snug">{goal.goalLabel}</CardTitle>
                   <div className="flex flex-col items-end text-xs leading-snug text-muted-foreground">
-                    <span>总部定义关键活动：已提交 {submittedHeadquarters.length} 条</span>
-                    <span>区域日常工作：已提交 {submittedRegional.length} 条</span>
+                    <span>总部定义关键活动：已提交 {submittedHeadquarters.length} 项</span>
+                    <span>区域日常工作：已提交 {submittedRegional.length} 项</span>
                   </div>
                 </div>
               </CardHeader>
 
               {expanded ? (
-                <CardContent className="space-y-3 pt-0 px-4 pb-4">
+                <CardContent className="space-y-3 pt-0 px-4 pb-4 overflow-hidden">
                   {expandedSectionType === "headquarters" ? (
-                  <section className="space-y-2 rounded-md border p-2.5">
+                  <section className="space-y-2 rounded-md border p-2.5 overflow-hidden">
                     <div className="flex items-center justify-between gap-2">
                       <h4 className="text-sm font-semibold leading-snug">总部定义关键活动</h4>
                       <Button
@@ -497,7 +612,7 @@ export function ExecutionWorkbench({
                     ) : null}
 
                     {goal.headquartersActivities.filter((a) => a.selected).length ? (
-                      <div className="space-y-2">
+                      <div className="max-h-[340px] space-y-2 overflow-y-auto pr-1">
                         {goal.headquartersActivities
                           .filter((a) => a.selected)
                           .map((activity) => {
@@ -675,7 +790,7 @@ export function ExecutionWorkbench({
                     </div>
                   </section>
                   ) : (
-                  <section className="rounded-md border p-2.5">
+                  <section className="rounded-md border p-2.5 overflow-hidden">
                     <div className="mb-1 flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <h4 className="text-sm font-semibold leading-snug">总部定义关键活动</h4>
@@ -688,14 +803,13 @@ export function ExecutionWorkbench({
                         className="h-7 px-2 text-xs leading-snug"
                         onClick={() => {
                           setExpandedSectionType("headquarters");
-                          setExpandedHeadquartersGoalKey(goal.goalKey);
                         }}
                       >
                         编辑
                       </Button>
                     </div>
                     {submittedHeadquarters.length ? (
-                      <div className="space-y-2">
+                      <div className="max-h-[340px] space-y-2 overflow-y-auto pr-1">
                         {submittedHeadquarters.map((item) => (
                           <div key={item.activityKey} className="rounded-md border bg-muted/20 p-2 text-sm leading-snug">
                             <p className="font-medium leading-snug">{item.title}</p>
@@ -713,7 +827,7 @@ export function ExecutionWorkbench({
                   )}
 
                   {expandedSectionType === "regional" ? (
-                  <section className="space-y-2 rounded-md border p-2.5">
+                  <section className="space-y-2 rounded-md border p-2.5 overflow-hidden">
                     <div className="flex items-center justify-between gap-2">
                       <h4 className="text-sm font-semibold leading-snug">区域日常工作</h4>
                       <Button
@@ -725,6 +839,7 @@ export function ExecutionWorkbench({
                           const newActivity = {
                             ...emptyRegionalActivity(`${goal.goalKey}-regional`),
                             clarifiedAt: nowTimestampIso(),
+                            planStart: selectedWeekKey,
                           };
                           updateGoal(goal.goalKey, (targetGoal) => ({
                             ...targetGoal,
@@ -737,9 +852,9 @@ export function ExecutionWorkbench({
                       </Button>
                     </div>
 
-                    {goal.regionalActivities.length ? (
-                      <div className="space-y-2">
-                        {goal.regionalActivities.map((activity) => {
+                    {weekRegionalActivities.length ? (
+                      <div className="max-h-[340px] space-y-2 overflow-y-auto pr-1">
+                        {weekRegionalActivities.map((activity) => {
                           const isExpanded = expandedRegionalActivityId[goal.goalKey] === activity.id;
                           return (
                             <div key={activity.id} className="rounded-md border bg-muted/10 p-2.5">
@@ -921,7 +1036,7 @@ export function ExecutionWorkbench({
                     </div>
                   </section>
                   ) : (
-                  <section className="rounded-md border p-2.5">
+                  <section className="rounded-md border p-2.5 overflow-hidden">
                     <div className="mb-1 flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <h4 className="text-sm font-semibold leading-snug">区域日常工作</h4>
@@ -934,14 +1049,13 @@ export function ExecutionWorkbench({
                         className="h-7 px-2 text-xs leading-snug"
                         onClick={() => {
                           setExpandedSectionType("regional");
-                          setExpandedHeadquartersGoalKey("");
                         }}
                       >
                         编辑
                       </Button>
                     </div>
                     {submittedRegional.length ? (
-                      <div className="space-y-2">
+                      <div className="max-h-[340px] space-y-2 overflow-y-auto pr-1">
                         {submittedRegional.map((item) => (
                           <div key={item.id} className="rounded-md border bg-muted/20 p-2 text-sm leading-snug">
                             <p className="font-medium leading-snug">{item.title || "未命名区域活动"}</p>
@@ -961,8 +1075,8 @@ export function ExecutionWorkbench({
               ) : null}
 
               {!expanded ? (
-                <CardContent className="space-y-3 pt-0 px-4 pb-4">
-                  <section className="rounded-md border p-2.5">
+                <CardContent className="space-y-3 pt-0 px-4 pb-4 overflow-hidden">
+                  <section className="rounded-md border p-2.5 overflow-hidden">
                     <div className="mb-1 flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <h4 className="text-sm font-semibold leading-snug">总部定义关键活动</h4>
@@ -976,14 +1090,13 @@ export function ExecutionWorkbench({
                         onClick={() => {
                           setExpandedGoalKey(goal.goalKey);
                           setExpandedSectionType("headquarters");
-                          setExpandedHeadquartersGoalKey(goal.goalKey);
                         }}
                       >
                         编辑
                       </Button>
                     </div>
                     {submittedHeadquarters.length ? (
-                      <div className="space-y-2">
+                      <div className="max-h-[340px] space-y-2 overflow-y-auto pr-1">
                         {submittedHeadquarters.map((item) => (
                           <div key={item.activityKey} className="rounded-md border bg-muted/20 p-2 text-sm leading-snug">
                             <p className="font-medium leading-snug">{item.title}</p>
@@ -999,7 +1112,7 @@ export function ExecutionWorkbench({
                     )}
                   </section>
 
-                  <section className="rounded-md border p-2.5">
+                  <section className="rounded-md border p-2.5 overflow-hidden">
                     <div className="mb-1 flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <h4 className="text-sm font-semibold leading-snug">区域日常工作</h4>
@@ -1013,14 +1126,13 @@ export function ExecutionWorkbench({
                         onClick={() => {
                           setExpandedGoalKey(goal.goalKey);
                           setExpandedSectionType("regional");
-                          setExpandedHeadquartersGoalKey("");
                         }}
                       >
                         编辑
                       </Button>
                     </div>
                     {submittedRegional.length ? (
-                      <div className="space-y-2">
+                      <div className="max-h-[340px] space-y-2 overflow-y-auto pr-1">
                         {submittedRegional.map((item) => (
                           <div key={item.id} className="rounded-md border bg-muted/20 p-2 text-sm leading-snug">
                             <p className="font-medium leading-snug">{item.title || "未命名区域活动"}</p>
@@ -1060,3 +1172,5 @@ export function ExecutionWorkbench({
     </form>
   );
 }
+
+

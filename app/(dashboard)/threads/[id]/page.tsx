@@ -1,18 +1,19 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 
-import { ExecutionWorkbench } from "@/components/thread/execution-workbench";
+import { ActivityAddModule } from "@/components/thread/activity-add-module";
+import { PlanProgressModule } from "@/components/thread/plan-progress-module";
 import { ThreadDetailReadonly } from "@/components/thread/thread-detail-readonly";
 import { ThreadStepper } from "@/components/thread/thread-stepper";
 import { Button } from "@/components/ui/button";
-import { WeeklyGenerator } from "@/components/weekly-report/weekly-generator";
 import { getThreadDetail } from "@/lib/repos/thread-repo";
 import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
 type SearchParams = Record<string, string | string[] | undefined>;
+type PlanTabKey = "progress" | "activity-add" | "weekly";
 
 function getOne(query: string | string[] | undefined) {
   return Array.isArray(query) ? query[0] : query;
@@ -26,6 +27,12 @@ function toText(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
 }
 
+function parseTab(value: string | undefined): PlanTabKey {
+  if (value === "activity-add" || value === "weekly") return value;
+  if (value === "plan") return "progress";
+  return "progress";
+}
+
 export default async function ThreadDetailPage({
   params,
   searchParams,
@@ -35,9 +42,11 @@ export default async function ThreadDetailPage({
 }) {
   const { id } = await params;
   const query = await searchParams;
-  const tab = getOne(query.tab) === "weekly" ? "weekly" : "plan";
-  const panel = getOne(query.panel) === "execution" ? "execution" : "readonly";
+  const tab = parseTab(getOne(query.tab));
   const savedAction = getOne(query.savedAction) || "";
+  const managerName = getOne(query.managerName);
+  const role = getOne(query.role);
+
   const thread = await getThreadDetail(id);
   if (!thread) notFound();
 
@@ -48,15 +57,12 @@ export default async function ThreadDetailPage({
     toText(toRecord(success.scenarioMasterSnapshot).name) ||
     thread.keyProjectScenario;
 
-  const tabLink = (nextTab: "plan" | "weekly", nextPanel?: "readonly" | "execution") => {
+  const tabLink = (nextTab: PlanTabKey) => {
     const params = new URLSearchParams({
       tab: nextTab,
-      ...(getOne(query.managerName) ? { managerName: String(getOne(query.managerName)) } : {}),
-      ...(getOne(query.role) ? { role: String(getOne(query.role)) } : {}),
+      ...(managerName ? { managerName: String(managerName) } : {}),
+      ...(role ? { role: String(role) } : {}),
     });
-    if (nextTab === "plan" && nextPanel === "execution") {
-      params.set("panel", "execution");
-    }
     return `/threads/${thread.id}?${params.toString()}`;
   };
 
@@ -64,13 +70,13 @@ export default async function ThreadDetailPage({
     thread.customerId
       ? `/threads/customers/${thread.customerId}?${new URLSearchParams({
           scenarioId: thread.id,
-          ...(getOne(query.managerName) ? { managerName: String(getOne(query.managerName)) } : {}),
-          ...(getOne(query.role) ? { role: String(getOne(query.role)) } : {}),
+          ...(managerName ? { managerName: String(managerName) } : {}),
+          ...(role ? { role: String(role) } : {}),
         }).toString()}`
-      : (getOne(query.managerName) || getOne(query.role))
+      : managerName || role
         ? `/threads?${new URLSearchParams({
-            ...(getOne(query.managerName) ? { managerName: String(getOne(query.managerName)) } : {}),
-            ...(getOne(query.role) ? { role: String(getOne(query.role)) } : {}),
+            ...(managerName ? { managerName: String(managerName) } : {}),
+            ...(role ? { role: String(role) } : {}),
           }).toString()}`
         : "/threads";
 
@@ -83,81 +89,87 @@ export default async function ThreadDetailPage({
         </Link>
       </Button>
 
-      <ThreadStepper
-        id={thread.id}
-        stage={thread.stage}
-        stageStatus={thread.stageStatus}
-        riskLevel={thread.riskLevel}
-        nextAction={thread.nextAction}
-      />
-
-      <section className="space-y-3 rounded-lg border bg-card p-4">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex flex-wrap gap-2">
-            <Button variant={tab === "plan" ? "default" : "outline"} size="sm" asChild>
-              <Link href={tabLink("plan")}>计划详情</Link>
-            </Button>
-            <Button variant={tab === "weekly" ? "default" : "outline"} size="sm" asChild>
-              <Link href={tabLink("weekly")}>周报生成</Link>
-            </Button>
-          </div>
-          {tab === "plan" ? (
-            <Button variant="outline" size="sm" asChild>
-              <Link href={panel === "execution" ? tabLink("plan") : tabLink("plan", "execution")}>
-                {panel === "execution" ? "收起执行动作" : "新增执行动作"}
-              </Link>
-            </Button>
-          ) : null}
+      <section className="space-y-3 rounded-lg border bg-card p-4 overflow-hidden">
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant={tab === "progress" ? "default" : "outline"} size="sm" asChild>
+            <Link href={tabLink("progress")}>计划进展详情</Link>
+          </Button>
+          <Button variant={tab === "activity-add" ? "default" : "outline"} size="sm" asChild>
+            <Link href={tabLink("activity-add")}>具体活动新增</Link>
+          </Button>
+          <Button variant={tab === "weekly" ? "default" : "outline"} size="sm" asChild>
+            <Link href={tabLink("weekly")}>周报生成</Link>
+          </Button>
         </div>
 
-        {tab === "plan" ? (
+        {tab === "progress" ? (
           <div className="space-y-3">
             {savedAction === "save_execution" ? (
-              <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-                保存完成
-              </div>
+              <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">已保存</div>
             ) : null}
 
-            <div className={cn("grid gap-4", panel === "execution" ? "xl:grid-cols-[minmax(0,1fr)_480px]" : "")}>
+            <div className={cn("grid gap-4 xl:grid-cols-[minmax(0,1fr)_560px]")}>
               <div className="space-y-3">
-                <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
-                  客户成功计划详情不允许在当前页面修改。如需修改计划，请到客户管理界面编辑相关主数据。
+                <ThreadStepper
+                  id={thread.id}
+                  stage={thread.stage}
+                  stageStatus={thread.stageStatus}
+                  riskLevel={thread.riskLevel}
+                  nextAction={thread.nextAction}
+                />
+                <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+                  计划详情用于展示全貌；新增与维护具体活动请使用「具体活动新增」模块。
                 </div>
                 <ThreadDetailReadonly
                   thread={{
+                    id: thread.id,
+                    customer: thread.customer,
+                    ownerName: thread.ownerName,
+                    keyPerson: thread.keyPerson,
+                    keyPersonDept: thread.keyPersonDept,
                     keyProjectScenario: scenarioDisplayName,
                     productLine: thread.productLine,
+                    stageStatus: thread.stageStatus,
+                    riskLevel: thread.riskLevel,
+                    nextAction: thread.nextAction,
+                    createdAt: thread.createdAt,
+                    updatedAt: thread.updatedAt,
                     goalSection: thread.goalSection,
                     orgSection: thread.orgSection,
                     successSection: thread.successSection,
                     activitySection: thread.activitySection,
                   }}
+                  managerName={managerName}
+                  role={role}
+                  hideGoalActionButtons
                 />
               </div>
 
-              {panel === "execution" ? (
-                <section className="space-y-3 rounded-lg border bg-card p-4">
-                  <div>
-                    <h3 className="text-base font-semibold">新增执行动作</h3>
-                    <p className="text-sm text-muted-foreground">当前关键场景：{scenarioDisplayName}</p>
-                  </div>
-                  <ExecutionWorkbench threadId={thread.id} executionSection={thread.executionSection} />
-                </section>
-              ) : null}
+              <section className="space-y-3 rounded-lg border bg-card p-4 overflow-hidden">
+                <div>
+                  <h3 className="text-base font-semibold">具体工作进度</h3>
+                  <p className="text-sm text-muted-foreground">当前关键场景：{scenarioDisplayName}</p>
+                </div>
+                <PlanProgressModule executionSection={thread.executionSection} />
+              </section>
             </div>
           </div>
         ) : null}
 
-        {tab === "weekly" ? (
-          <WeeklyGenerator
+        {tab === "activity-add" ? (
+          <ActivityAddModule
             threadId={thread.id}
-            defaultCustomerId={thread.customerId}
-            defaultOwnerName={thread.ownerName}
-            managerName={getOne(query.managerName)}
-            role={getOne(query.role)}
-            selectedCustomerId={getOne(query.weeklyCustomerId)}
-            selectedOwnerName={getOne(query.weeklyOwnerName)}
+            executionSection={thread.executionSection}
+            managerName={managerName}
+            role={role}
           />
+        ) : null}
+
+        {tab === "weekly" ? (
+          <section className="rounded-lg border bg-card p-6">
+            <h3 className="text-base font-semibold">周报生成</h3>
+            <p className="mt-2 text-sm text-muted-foreground">后续设计中。</p>
+          </section>
         ) : null}
       </section>
     </div>
